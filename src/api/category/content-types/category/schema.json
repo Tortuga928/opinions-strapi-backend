@@ -1,0 +1,40 @@
+{
+  "kind": "collectionType",
+  "collectionName": "categories",
+  "info": {
+    "singularName": "category",
+    "pluralName": "categories",
+    "displayName": "Category",
+    "description": "Opinion categories"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "maxLength": 50
+    },
+    "color": {
+      "type": "string",
+      "default": "#007AFF",
+      "regex": "^#([0-9A-F]{3}){1,2}$"
+    },
+    "description": {
+      "type": "text",
+      "maxLength": 200
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    },
+    "opinions": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::opinion.opinion"
+    }
+  }
+}

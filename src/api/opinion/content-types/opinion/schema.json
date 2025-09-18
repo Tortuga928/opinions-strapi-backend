@@ -1,0 +1,47 @@
+{
+  "kind": "collectionType",
+  "collectionName": "opinions",
+  "info": {
+    "singularName": "opinion",
+    "pluralName": "opinions",
+    "displayName": "Opinion",
+    "description": "User opinions with ratings and comments"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "statement": {
+      "type": "text",
+      "required": true,
+      "maxLength": 1000
+    },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category"
+    },
+    "rating": {
+      "type": "integer",
+      "required": true,
+      "min": 0,
+      "max": 10,
+      "default": 5
+    },
+    "comments": {
+      "type": "text",
+      "maxLength": 256,
+      "default": ""
+    },
+    "isHidden": {
+      "type": "boolean",
+      "default": false
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}
