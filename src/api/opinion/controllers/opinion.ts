@@ -5,23 +5,11 @@
 import { factories } from '@strapi/strapi'
 
 export default factories.createCoreController('api::opinion.opinion', ({ strapi }) => ({
-  // Custom create method to associate opinion with current user
-  async create(ctx) {
-    if (ctx.state.user) {
-      ctx.request.body.data.user = ctx.state.user.id;
-    }
-    const response = await super.create(ctx);
-    return response;
-  },
-
-  // Custom find method to include user data
+  // Custom find method to include category data
   async find(ctx) {
     ctx.query = {
       ...ctx.query,
       populate: {
-        user: {
-          fields: ['id', 'username']
-        },
         category: {
           fields: ['id', 'name', 'color']
         }
@@ -36,9 +24,6 @@ export default factories.createCoreController('api::opinion.opinion', ({ strapi 
     ctx.query = {
       ...ctx.query,
       populate: {
-        user: {
-          fields: ['id', 'username']
-        },
         category: {
           fields: ['id', 'name', 'color']
         }
