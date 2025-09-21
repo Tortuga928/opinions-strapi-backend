@@ -1,6 +1,6 @@
 {
   "kind": "collectionType",
-  "collectionName": "opinions",
+  "collectionName": "opinions_v2",
   "info": {
     "singularName": "opinion",
     "pluralName": "opinions",
