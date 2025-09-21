@@ -1,0 +1,42 @@
+{
+  "kind": "collectionType",
+  "collectionName": "statements",
+  "info": {
+    "singularName": "statement",
+    "pluralName": "statements",
+    "displayName": "Statement",
+    "description": "User statements with ratings and comments"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "text": {
+      "type": "text",
+      "required": true,
+      "maxLength": 1000
+    },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category"
+    },
+    "rating": {
+      "type": "integer",
+      "required": true,
+      "min": 0,
+      "max": 10,
+      "default": 5
+    },
+    "comments": {
+      "type": "text",
+      "maxLength": 256,
+      "default": ""
+    },
+    "isHidden": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}
