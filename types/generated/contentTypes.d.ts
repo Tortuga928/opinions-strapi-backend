@@ -427,11 +427,6 @@ export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
   };
   attributes: {
     category: Schema.Attribute.Relation<'manyToOne', 'api::category.category'>;
-    comments: Schema.Attribute.Text &
-      Schema.Attribute.SetMinMaxLength<{
-        maxLength: 256;
-      }> &
-      Schema.Attribute.DefaultTo<''>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -443,16 +438,6 @@ export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
-    rating: Schema.Attribute.Integer &
-      Schema.Attribute.Required &
-      Schema.Attribute.SetMinMax<
-        {
-          max: 10;
-          min: 0;
-        },
-        number
-      > &
-      Schema.Attribute.DefaultTo<5>;
     statement: Schema.Attribute.Text &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
@@ -461,6 +446,10 @@ export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    user_ratings: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::user-rating.user-rating'
+    >;
   };
 }
 
@@ -511,6 +500,64 @@ export interface ApiStatementStatement extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiUserRatingUserRating extends Struct.CollectionTypeSchema {
+  collectionName: 'user_ratings';
+  info: {
+    description: 'User ratings and comments for opinions';
+    displayName: 'User Rating';
+    pluralName: 'user-ratings';
+    singularName: 'user-rating';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: true;
+    };
+    'content-type-builder': {
+      visible: true;
+    };
+  };
+  attributes: {
+    comments: Schema.Attribute.Text &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 256;
+      }> &
+      Schema.Attribute.DefaultTo<''>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::user-rating.user-rating'
+    > &
+      Schema.Attribute.Private;
+    opinion: Schema.Attribute.Relation<'manyToOne', 'api::opinion.opinion'> &
+      Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    rating: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 10;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<5>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    > &
+      Schema.Attribute.Required;
   };
 }
 
@@ -1026,6 +1073,7 @@ declare module '@strapi/strapi' {
       'api::category.category': ApiCategoryCategory;
       'api::opinion.opinion': ApiOpinionOpinion;
       'api::statement.statement': ApiStatementStatement;
+      'api::user-rating.user-rating': ApiUserRatingUserRating;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

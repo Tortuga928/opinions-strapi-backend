@@ -34,7 +34,8 @@
     "opinions": {
       "type": "relation",
       "relation": "oneToMany",
-      "target": "api::opinion.opinion"
+      "target": "api::opinion.opinion",
+      "mappedBy": "category"
     }
   }
 }

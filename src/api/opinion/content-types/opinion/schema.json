@@ -20,19 +20,14 @@
     "category": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::category.category"
+      "target": "api::category.category",
+      "inversedBy": "opinions"
     },
-    "rating": {
-      "type": "integer",
-      "required": true,
-      "min": 0,
-      "max": 10,
-      "default": 5
-    },
-    "comments": {
-      "type": "text",
-      "maxLength": 256,
-      "default": ""
+    "user_ratings": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::user-rating.user-rating",
+      "mappedBy": "opinion"
     },
     "isHidden": {
       "type": "boolean",

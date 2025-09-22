@@ -1,0 +1,47 @@
+{
+  "kind": "collectionType",
+  "collectionName": "user_ratings",
+  "info": {
+    "singularName": "user-rating",
+    "pluralName": "user-ratings",
+    "displayName": "User Rating",
+    "description": "User ratings and comments for opinions"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": {
+      "visible": true
+    },
+    "content-type-builder": {
+      "visible": true
+    }
+  },
+  "attributes": {
+    "rating": {
+      "type": "integer",
+      "required": true,
+      "min": 0,
+      "max": 10,
+      "default": 5
+    },
+    "comments": {
+      "type": "text",
+      "maxLength": 256,
+      "default": ""
+    },
+    "opinion": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::opinion.opinion",
+      "required": true
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "required": true
+    }
+  }
+}

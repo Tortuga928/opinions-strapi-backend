@@ -22,6 +22,8 @@ export default [
         'http://localhost:3001',
         'http://localhost:3002',
         'http://localhost:3003',
+        'http://localhost:1338',
+        'http://localhost:1339',
         'https://www.nleos.com',
         'https://nleos.com'
       ],
