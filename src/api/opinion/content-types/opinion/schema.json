@@ -14,8 +14,8 @@
   "attributes": {
     "statement": {
       "type": "text",
-      "required": true,
-      "maxLength": 1000
+      "maxLength": 1000,
+      "required": true
     },
     "category": {
       "type": "relation",
@@ -23,15 +23,15 @@
       "target": "api::category.category",
       "inversedBy": "opinions"
     },
+    "isHidden": {
+      "type": "boolean",
+      "default": false
+    },
     "user_ratings": {
       "type": "relation",
       "relation": "oneToMany",
       "target": "api::user-rating.user-rating",
       "mappedBy": "opinion"
-    },
-    "isHidden": {
-      "type": "boolean",
-      "default": false
     }
   }
 }

@@ -506,28 +506,18 @@ export interface ApiStatementStatement extends Struct.CollectionTypeSchema {
 export interface ApiUserRatingUserRating extends Struct.CollectionTypeSchema {
   collectionName: 'user_ratings';
   info: {
-    description: 'User ratings and comments for opinions';
-    displayName: 'User Rating';
+    displayName: 'UserRating';
     pluralName: 'user-ratings';
     singularName: 'user-rating';
   };
   options: {
-    draftAndPublish: false;
-  };
-  pluginOptions: {
-    'content-manager': {
-      visible: true;
-    };
-    'content-type-builder': {
-      visible: true;
-    };
+    draftAndPublish: true;
   };
   attributes: {
     comments: Schema.Attribute.Text &
       Schema.Attribute.SetMinMaxLength<{
         maxLength: 256;
-      }> &
-      Schema.Attribute.DefaultTo<''>;
+      }>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -537,8 +527,7 @@ export interface ApiUserRatingUserRating extends Struct.CollectionTypeSchema {
       'api::user-rating.user-rating'
     > &
       Schema.Attribute.Private;
-    opinion: Schema.Attribute.Relation<'manyToOne', 'api::opinion.opinion'> &
-      Schema.Attribute.Required;
+    opinion: Schema.Attribute.Relation<'manyToOne', 'api::opinion.opinion'>;
     publishedAt: Schema.Attribute.DateTime;
     rating: Schema.Attribute.Integer &
       Schema.Attribute.Required &
@@ -553,11 +542,10 @@ export interface ApiUserRatingUserRating extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    user: Schema.Attribute.Relation<
+    users_permissions_user: Schema.Attribute.Relation<
       'manyToOne',
       'plugin::users-permissions.user'
-    > &
-      Schema.Attribute.Required;
+    >;
   };
 }
 
@@ -1016,7 +1004,6 @@ export interface PluginUsersPermissionsUser
   };
   options: {
     draftAndPublish: false;
-    timestamps: true;
   };
   attributes: {
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
@@ -1051,6 +1038,10 @@ export interface PluginUsersPermissionsUser
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    user_ratings: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::user-rating.user-rating'
+    >;
     username: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique &
