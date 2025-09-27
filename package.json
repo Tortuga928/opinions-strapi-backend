@@ -15,10 +15,13 @@
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "@strapi/plugin-cloud": "5.23.5",
     "@strapi/plugin-users-permissions": "5.23.5",
+    "@strapi/provider-email-nodemailer": "^5.24.1",
     "@strapi/strapi": "5.23.5",
     "better-sqlite3": "11.3.0",
+    "dotenv": "^17.2.2",
     "koa-ratelimit": "^6.0.0",
     "pg": "^8.16.3",
     "react": "^18.0.0",
@@ -30,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "cross-env": "^10.0.0",
     "typescript": "^5"
   },
   "engines": {
