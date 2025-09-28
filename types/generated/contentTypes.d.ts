@@ -430,6 +430,16 @@ export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    generation_details: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 256;
+      }>;
+    generation_source: Schema.Attribute.Enumeration<
+      ['News', 'Research', 'Laws', 'Advertisements']
+    >;
+    generation_type: Schema.Attribute.Enumeration<
+      ['Celebrity', 'Politician', 'Company Executive']
+    >;
     isHidden: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -438,6 +448,8 @@ export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
+    source_type: Schema.Attribute.Enumeration<['Human', 'AI']> &
+      Schema.Attribute.DefaultTo<'Human'>;
     statement: Schema.Attribute.Text &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{

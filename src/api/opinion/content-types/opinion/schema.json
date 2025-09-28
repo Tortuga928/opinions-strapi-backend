@@ -32,6 +32,23 @@
       "relation": "oneToMany",
       "target": "api::user-rating.user-rating",
       "mappedBy": "opinion"
+    },
+    "source_type": {
+      "type": "enumeration",
+      "enum": ["Human", "AI"],
+      "default": "Human"
+    },
+    "generation_type": {
+      "type": "enumeration",
+      "enum": ["Celebrity", "Politician", "Company Executive"]
+    },
+    "generation_source": {
+      "type": "enumeration",
+      "enum": ["News", "Research", "Laws", "Advertisements"]
+    },
+    "generation_details": {
+      "type": "string",
+      "maxLength": 256
     }
   }
 }
