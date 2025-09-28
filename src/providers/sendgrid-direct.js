@@ -4,10 +4,8 @@ module.exports = {
       send: async options => {
         const { to, from, subject, text, html } = options;
 
-        // IMPORTANT: Force the from address to be the verified SendGrid sender
-        // This ensures emails are sent from a verified sender identity
-        // Do not remove or change this - it's required for SendGrid to work
-        const fromEmail = 'steven.banke@gmail.com';
+        // Use the from email from settings or fall back to environment variable
+        const fromEmail = settings.defaultFrom || process.env.SENDGRID_DEFAULT_FROM || from;
 
         // Check if this is a password reset email and modify the content
         let emailContent = html || text || '';
