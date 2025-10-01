@@ -46,4 +46,6 @@ export default [
   'strapi::session',
   'strapi::favicon',
   'strapi::public',
+  'global::ai-auth', // AI Manager authentication (must run before rate limit)
+  'global::ai-rate-limit', // AI Manager rate limiting
 ];
