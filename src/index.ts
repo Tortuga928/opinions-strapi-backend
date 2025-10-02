@@ -47,5 +47,47 @@ export default {
     } else {
       console.log('📋 Categories already exist, skipping seed');
     }
+
+    // Configure quote-draft permissions for authenticated users
+    try {
+      const pluginStore = strapi.store({ type: 'plugin', name: 'users-permissions' });
+      const authenticatedRole = await strapi
+        .query('plugin::users-permissions.role')
+        .findOne({ where: { type: 'authenticated' } });
+
+      if (authenticatedRole) {
+        const currentPermissions = await pluginStore.get({ key: 'grant' });
+
+        // Set quote-draft permissions
+        const quoteDraftPermissions = {
+          controllers: {
+            'quote-draft': {
+              find: { enabled: true },
+              findOne: { enabled: true },
+              create: { enabled: true },
+              update: { enabled: true },
+              delete: { enabled: true },
+              generateQuote: { enabled: true },
+              deleteAllUserDrafts: { enabled: true }
+            }
+          }
+        };
+
+        // Merge with existing permissions
+        if (!currentPermissions.authenticated) {
+          currentPermissions.authenticated = {};
+        }
+        if (!currentPermissions.authenticated['api::quote-draft']) {
+          currentPermissions.authenticated['api::quote-draft'] = {};
+        }
+
+        currentPermissions.authenticated['api::quote-draft'] = quoteDraftPermissions;
+
+        await pluginStore.set({ key: 'grant', value: currentPermissions });
+        console.log('✅ Quote-draft permissions configured');
+      }
+    } catch (error) {
+      console.error('❌ Error configuring quote-draft permissions:', error);
+    }
   },
 };

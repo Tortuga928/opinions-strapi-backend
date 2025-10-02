@@ -1,0 +1,67 @@
+{
+  "kind": "collectionType",
+  "collectionName": "quote_drafts",
+  "info": {
+    "singularName": "quote-draft",
+    "pluralName": "quote-drafts",
+    "displayName": "Quote Draft",
+    "description": "AI-generated quote drafts for review before saving as opinions"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "quote_text": {
+      "type": "text",
+      "required": true,
+      "minLength": 10,
+      "maxLength": 1000
+    },
+    "speaker_name": {
+      "type": "string",
+      "required": true,
+      "maxLength": 100
+    },
+    "publication_source": {
+      "type": "string",
+      "required": true,
+      "maxLength": 200
+    },
+    "source_url": {
+      "type": "string",
+      "required": true,
+      "maxLength": 500
+    },
+    "confidence_score": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 50
+    },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category"
+    },
+    "generation_type": {
+      "type": "enumeration",
+      "enum": ["Celebrity", "Politician", "Company Executive"],
+      "required": true
+    },
+    "generation_source": {
+      "type": "enumeration",
+      "enum": ["News", "Research", "Laws", "Advertisements"],
+      "required": true
+    },
+    "generation_details": {
+      "type": "text",
+      "maxLength": 500
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}

@@ -465,6 +465,81 @@ export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiQuoteDraftQuoteDraft extends Struct.CollectionTypeSchema {
+  collectionName: 'quote_drafts';
+  info: {
+    description: 'AI-generated quote drafts for review before saving as opinions';
+    displayName: 'Quote Draft';
+    pluralName: 'quote-drafts';
+    singularName: 'quote-draft';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    category: Schema.Attribute.Relation<'manyToOne', 'api::category.category'>;
+    confidence_score: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<50>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    generation_details: Schema.Attribute.Text &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
+    generation_source: Schema.Attribute.Enumeration<
+      ['News', 'Research', 'Laws', 'Advertisements']
+    > &
+      Schema.Attribute.Required;
+    generation_type: Schema.Attribute.Enumeration<
+      ['Celebrity', 'Politician', 'Company Executive']
+    > &
+      Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::quote-draft.quote-draft'
+    > &
+      Schema.Attribute.Private;
+    publication_source: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 200;
+      }>;
+    publishedAt: Schema.Attribute.DateTime;
+    quote_text: Schema.Attribute.Text &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 1000;
+        minLength: 10;
+      }>;
+    source_url: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
+    speaker_name: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 100;
+      }>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiStatementStatement extends Struct.CollectionTypeSchema {
   collectionName: 'statements';
   info: {
@@ -1075,6 +1150,7 @@ declare module '@strapi/strapi' {
       'admin::user': AdminUser;
       'api::category.category': ApiCategoryCategory;
       'api::opinion.opinion': ApiOpinionOpinion;
+      'api::quote-draft.quote-draft': ApiQuoteDraftQuoteDraft;
       'api::statement.statement': ApiStatementStatement;
       'api::user-rating.user-rating': ApiUserRatingUserRating;
       'plugin::content-releases.release': PluginContentReleasesRelease;
