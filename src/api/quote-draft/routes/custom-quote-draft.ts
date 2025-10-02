@@ -9,9 +9,8 @@ export default {
       path: '/quote-drafts/generate',
       handler: 'quote-draft.generateQuote',
       config: {
-        auth: {
-          scope: ['api::quote-draft.quote-draft.generateQuote']
-        }
+        policies: [],
+        middlewares: []
       }
     },
     {
@@ -19,9 +18,18 @@ export default {
       path: '/quote-drafts/delete-all',
       handler: 'quote-draft.deleteAllUserDrafts',
       config: {
-        auth: {
-          scope: ['api::quote-draft.quote-draft.deleteAllUserDrafts']
-        }
+        policies: [],
+        middlewares: []
+      }
+    },
+    {
+      method: 'POST',
+      path: '/quote-drafts/:id/publish',
+      handler: 'quote-draft.publish',
+      config: {
+        auth: false, // Auth handled by middleware below
+        policies: [],
+        middlewares: ['global::quote-draft-auth']
       }
     }
   ]

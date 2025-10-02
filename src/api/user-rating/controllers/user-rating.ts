@@ -23,7 +23,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
     // Check if this is a request for statistics (all ratings including current user)
     if (ctx.query.stats === 'true' && ctx.query.opinionId) {
       const opinionId = ctx.query.opinionId;
-      console.log(`[UserRating Controller] Getting stats for opinion ${opinionId}`);
 
       try {
         // Find ALL ratings for this opinion (including current user)
@@ -69,12 +68,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
           }))
         };
 
-        console.log(`[UserRating Controller] Stats for opinion ${opinionId}:`, {
-          totalRatings: stats.totalRatings,
-          averageRating: stats.averageRating,
-          totalComments: stats.totalComments
-        });
-
         return { data: stats, meta: {} };
       } catch (error) {
         console.error('[UserRating Controller] Error fetching stats:', error);
@@ -86,8 +79,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
     if (ctx.query.public === 'true' && ctx.query.opinionId) {
       // Handle public ratings inline
       const opinionId = ctx.query.opinionId;
-
-      console.log(`[UserRating Controller] Getting public ratings for opinion ${opinionId}, excluding user ${user.id}`);
 
       try {
         // Find all ratings for this opinion, excluding the current user
@@ -109,8 +100,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
           sort: { createdAt: 'desc' } // Sort by newest first
         });
 
-        console.log(`[UserRating Controller] Found ${allRatings?.length || 0} total ratings for opinion ${opinionId}`);
-
         // Group ratings by user and keep only the most recent one
         const latestRatingsByUser = new Map();
 
@@ -127,8 +116,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
         // Convert map values to array and transform the data
         const uniqueRatings = Array.from(latestRatingsByUser.values());
 
-        console.log(`[UserRating Controller] Filtered to ${uniqueRatings.length} unique user ratings (most recent only)`);
-
         const publicRatings = uniqueRatings.map((rating: any) => ({
           id: rating.id,
           rating: rating.rating,
@@ -144,9 +131,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
       }
     }
 
-    // Log for debugging
-    console.log(`[UserRating Controller] Finding ratings for user: ${user.id} (${user.email})`);
-
     // Build query with user filter
     const existingFilters = (ctx.query?.filters || {}) as any;
     const filters = {
@@ -159,8 +143,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
       opinion: true,
       users_permissions_user: true
     };
-
-    console.log('[UserRating Controller] Filters being applied:', JSON.stringify(filters, null, 2));
 
     // Use entityService to find ratings with user filter
     const pagination = (ctx.query?.pagination || {}) as any;
@@ -186,17 +168,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
 
     // Convert map values to array
     const results = Array.from(latestRatingsByOpinion.values());
-
-    console.log(`[UserRating Controller] Found ${allResults?.length || 0} total ratings, filtered to ${results.length} unique opinion ratings for user ${user.id}`);
-
-    // Log the actual data being returned (for debugging)
-    if (results && results.length > 0) {
-      console.log('[UserRating Controller] Returning ratings:', results.map((r: any) => ({
-        id: r.id,
-        userId: r.users_permissions_user?.id || 'NO USER',
-        rating: r.rating
-      })));
-    }
 
     // Return in Strapi format
     return { data: results, meta: {} };
@@ -238,10 +209,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
       return ctx.unauthorized('You must be logged in to create ratings');
     }
 
-    // Log for debugging
-    console.log(`[UserRating Controller] Creating/updating rating for user: ${user.id} (${user.email})`);
-    console.log('[UserRating Controller] Request data:', ctx.request.body);
-
     // Get the data without the user field (it will be set automatically)
     const { rating, comments, opinion } = ctx.request.body.data;
 
@@ -257,8 +224,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
 
     if (existingRating && existingRating.length > 0) {
       // Update the existing rating
-      console.log(`[UserRating Controller] Updating existing rating ID: ${existingRating[0].id}`);
-
       const result = await strapi.entityService.update('api::user-rating.user-rating', existingRating[0].id, {
         data: {
           rating,
@@ -267,7 +232,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
         populate: ['opinion', 'users_permissions_user']
       });
 
-      console.log(`[UserRating Controller] Updated rating with ID: ${result.id} for user ${user.id}`);
       return { data: result, meta: {} };
     }
 
@@ -282,8 +246,6 @@ export default factories.createCoreController('api::user-rating.user-rating', ({
         },
         populate: ['opinion', 'users_permissions_user']
       });
-
-      console.log(`[UserRating Controller] Created rating with ID: ${result.id} for user ${user.id}`);
 
       // Return in the expected format
       return { data: result, meta: {} };

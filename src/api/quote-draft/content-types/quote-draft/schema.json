@@ -58,6 +58,10 @@
       "type": "text",
       "maxLength": 500
     },
+    "is_published": {
+      "type": "boolean",
+      "default": false
+    },
     "user": {
       "type": "relation",
       "relation": "manyToOne",

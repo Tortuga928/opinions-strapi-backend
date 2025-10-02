@@ -56,8 +56,7 @@ export default factories.createCoreController('api::opinion.opinion', ({ strapi 
           source_type: 'AI',
           generation_type: generationType,
           generation_source: generationSource,
-          generation_details: `Generated from ${generationSource} about ${generationType}`,
-          publishedAt: new Date()
+          generation_details: `Generated from ${generationSource} about ${generationType}`
         },
         populate: {
           category: true

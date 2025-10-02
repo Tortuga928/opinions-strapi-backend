@@ -68,7 +68,8 @@ export default {
               update: { enabled: true },
               delete: { enabled: true },
               generateQuote: { enabled: true },
-              deleteAllUserDrafts: { enabled: true }
+              deleteAllUserDrafts: { enabled: true },
+              publish: { enabled: true }
             }
           }
         };

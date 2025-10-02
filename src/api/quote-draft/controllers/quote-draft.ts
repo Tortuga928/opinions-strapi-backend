@@ -89,7 +89,6 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
     }
 
     try {
-      strapi.log.info(`Quote Draft Controller: Deleting all drafts for user ${user.id}`);
 
       // Find all drafts for this user
       const userDrafts = await strapi.entityService.findMany('api::quote-draft.quote-draft', {
@@ -100,7 +99,6 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
         }
       });
 
-      strapi.log.info(`Quote Draft Controller: Found ${userDrafts.length} drafts to delete`);
 
       // Delete each draft
       const deletePromises = userDrafts.map(draft =>
@@ -109,7 +107,6 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
 
       await Promise.all(deletePromises);
 
-      strapi.log.info(`Quote Draft Controller: Successfully deleted ${userDrafts.length} drafts for user ${user.id}`);
 
       return ctx.send({
         data: {
@@ -126,8 +123,6 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
 
   // Override find to only return current user's drafts
   async find(ctx) {
-    strapi.log.info('[Quote Draft Controller] find() called');
-    strapi.log.info(`[Quote Draft Controller] ctx.state.user = ${ctx.state.user ? `${ctx.state.user.id} (${ctx.state.user.username})` : 'null'}`);
 
     const user = ctx.state.user;
 
@@ -136,7 +131,6 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
       return ctx.unauthorized('You must be logged in to view quote drafts');
     }
 
-    strapi.log.info(`[Quote Draft Controller] Fetching drafts for user ${user.id}`);
 
     // Build filters with user filter
     const existingFilters = (ctx.query?.filters || {}) as any;
@@ -153,7 +147,6 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
       user: true
     };
 
-    strapi.log.info('[Quote Draft Controller] Filters being applied:', JSON.stringify(filters, null, 2));
 
     // Use entityService to find drafts with user filter - DO NOT use super.find()
     const pagination = (ctx.query?.pagination || {}) as any;
@@ -164,7 +157,6 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
       ...pagination
     });
 
-    strapi.log.info(`[Quote Draft Controller] Found ${results?.length || 0} drafts for user ${user.id}`);
 
     // Return in Strapi format
     return { data: results, meta: {} };
@@ -190,5 +182,104 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
     // Call the default core action
     const response = await super.create(ctx);
     return response;
+  },
+
+  /**
+   * Publish quote draft as an opinion
+   * POST /api/quote-drafts/:id/publish
+   */
+  async publish(ctx) {
+    const user = ctx.state.user;
+
+    if (!user) {
+      return ctx.unauthorized('You must be logged in to publish quote drafts');
+    }
+
+    const { id } = ctx.params;
+
+    try {
+
+      // Find the quote draft by documentId using query API
+      const drafts = await strapi.db.query('api::quote-draft.quote-draft').findMany({
+        where: {
+          documentId: id
+        },
+        populate: ['category', 'user']
+      });
+
+      if (!drafts || drafts.length === 0) {
+        strapi.log.error(`[Quote Draft Controller] Draft ${id} not found`);
+        return ctx.notFound('Quote draft not found');
+      }
+
+      // Get the quote draft
+      const quoteDraft: any = drafts[0];
+
+      // Verify ownership
+      if (quoteDraft.user.id !== user.id) {
+        return ctx.forbidden('You can only publish your own quote drafts');
+      }
+
+      // Check if already published
+      if (quoteDraft.is_published) {
+        return ctx.badRequest('This quote draft has already been published');
+      }
+
+      // Validate category exists
+      if (!quoteDraft.category || !quoteDraft.category.id) {
+        strapi.log.error(`[Quote Draft Controller] Draft ${quoteDraft.id} has no category`);
+        return ctx.badRequest('Quote draft must have a category to be published');
+      }
+
+      // Format the opinion statement: "quote" - Speaker, Source
+      const statement = `"${quoteDraft.quote_text}" - ${quoteDraft.speaker_name}, ${quoteDraft.publication_source}`;
+
+
+      // Create opinion from quote draft
+      const opinion = await strapi.entityService.create('api::opinion.opinion', {
+        data: {
+          statement,
+          category: quoteDraft.category.id,
+          source_type: 'AI',
+          generation_type: quoteDraft.generation_type,
+          generation_source: quoteDraft.generation_source,
+          generation_details: quoteDraft.generation_details || `Published from quote draft`
+        },
+        populate: ['category']
+      });
+
+      if (!opinion) {
+        strapi.log.error(`[Quote Draft Controller] Opinion creation returned null/undefined`);
+        throw new Error('Opinion creation failed - returned null');
+      }
+
+
+      // Mark quote draft as published (use numeric id)
+      const updatedDraft = await strapi.entityService.update('api::quote-draft.quote-draft', quoteDraft.id, {
+        data: {
+          is_published: true
+        },
+        populate: ['category', 'user']
+      });
+
+
+      // Return both the created opinion and updated draft
+      return ctx.send({
+        data: {
+          opinion,
+          quoteDraft: updatedDraft
+        },
+        message: 'Quote draft published successfully'
+      });
+
+    } catch (error) {
+      strapi.log.error('[Quote Draft Controller] Publish error:', {
+        message: error.message,
+        stack: error.stack,
+        draftId: id,
+        userId: user?.id
+      });
+      return ctx.internalServerError(`Failed to publish quote draft: ${error.message}`);
+    }
   }
 }));

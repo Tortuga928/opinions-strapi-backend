@@ -502,6 +502,7 @@ export interface ApiQuoteDraftQuoteDraft extends Struct.CollectionTypeSchema {
       ['Celebrity', 'Politician', 'Company Executive']
     > &
       Schema.Attribute.Required;
+    is_published: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
