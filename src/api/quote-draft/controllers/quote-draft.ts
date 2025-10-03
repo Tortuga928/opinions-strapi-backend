@@ -141,10 +141,11 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
       }
     };
 
-    // Always populate both category and user fields
+    // Always populate category, user, and opinion fields
     const populate = {
       category: true,
-      user: true
+      user: true,
+      opinion: true
     };
 
 
@@ -254,12 +255,13 @@ export default factories.createCoreController('api::quote-draft.quote-draft', ({
       }
 
 
-      // Mark quote draft as published (use numeric id)
+      // Mark quote draft as published and link to opinion (use numeric id)
       const updatedDraft = await strapi.entityService.update('api::quote-draft.quote-draft', quoteDraft.id, {
         data: {
-          is_published: true
+          is_published: true,
+          opinion: opinion.id
         },
-        populate: ['category', 'user']
+        populate: ['category', 'user', 'opinion']
       });
 
 

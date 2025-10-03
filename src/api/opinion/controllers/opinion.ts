@@ -33,6 +33,52 @@ export default factories.createCoreController('api::opinion.opinion', ({ strapi 
     return response;
   },
 
+  // Custom delete method to unpublish related quote draft
+  async delete(ctx) {
+    const { id } = ctx.params;
+
+    try {
+      // First, find the opinion to check if it has a related quote draft
+      const opinion = await strapi.entityService.findOne('api::opinion.opinion', id, {
+        populate: ['category']
+      });
+
+      if (!opinion) {
+        return ctx.notFound('Opinion not found');
+      }
+
+      // Find any quote drafts that reference this opinion
+      const relatedDrafts = await strapi.db.query('api::quote-draft.quote-draft').findMany({
+        where: {
+          opinion: {
+            id: opinion.id
+          }
+        }
+      });
+
+      // Delete the opinion using the default method
+      const response = await super.delete(ctx);
+
+      // Unpublish any related quote drafts (set is_published to false)
+      if (relatedDrafts && relatedDrafts.length > 0) {
+        for (const draft of relatedDrafts) {
+          await strapi.entityService.update('api::quote-draft.quote-draft', draft.id, {
+            data: {
+              is_published: false,
+              opinion: null
+            }
+          });
+        }
+        strapi.log.info(`Unpublished ${relatedDrafts.length} quote draft(s) after deleting opinion ${id}`);
+      }
+
+      return response;
+    } catch (error) {
+      strapi.log.error('Error deleting opinion:', error);
+      return ctx.internalServerError('Failed to delete opinion');
+    }
+  },
+
   // Auto-generate opinion method
   async generateOpinion(ctx) {
     try {

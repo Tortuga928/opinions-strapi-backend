@@ -509,6 +509,7 @@ export interface ApiQuoteDraftQuoteDraft extends Struct.CollectionTypeSchema {
       'api::quote-draft.quote-draft'
     > &
       Schema.Attribute.Private;
+    opinion: Schema.Attribute.Relation<'oneToOne', 'api::opinion.opinion'>;
     publication_source: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
