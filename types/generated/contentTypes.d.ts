@@ -414,6 +414,54 @@ export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiLoginHistoryLoginHistory
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'login_histories';
+  info: {
+    description: 'Tracks user login attempts and sessions';
+    displayName: 'Login History';
+    pluralName: 'login-histories';
+    singularName: 'login-history';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    failureReason: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
+    ipAddress: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 45;
+      }>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::login-history.login-history'
+    > &
+      Schema.Attribute.Private;
+    loginTime: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    logoutTime: Schema.Attribute.DateTime;
+    publishedAt: Schema.Attribute.DateTime;
+    success: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<true>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    > &
+      Schema.Attribute.Required;
+    userAgent: Schema.Attribute.Text;
+  };
+}
+
 export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
   collectionName: 'opinions';
   info: {
@@ -461,6 +509,55 @@ export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
     user_ratings: Schema.Attribute.Relation<
       'oneToMany',
       'api::user-rating.user-rating'
+    >;
+  };
+}
+
+export interface ApiPermissionProfilePermissionProfile
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'permission_profiles';
+  info: {
+    description: 'User permission profiles for access control';
+    displayName: 'Permission Profile';
+    pluralName: 'permission-profiles';
+    singularName: 'permission-profile';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
+    isSystemProfile: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<false>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::permission-profile.permission-profile'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 100;
+      }>;
+    permissions: Schema.Attribute.JSON &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<[]>;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users: Schema.Attribute.Relation<
+      'manyToMany',
+      'plugin::users-permissions.user'
     >;
   };
 }
@@ -589,6 +686,67 @@ export interface ApiStatementStatement extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiUserActivityLogUserActivityLog
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'user_activity_logs';
+  info: {
+    description: 'Tracks user activity for audit trail';
+    displayName: 'User Activity Log';
+    pluralName: 'user-activity-logs';
+    singularName: 'user-activity-log';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    activityType: Schema.Attribute.Enumeration<
+      [
+        'login',
+        'logout',
+        'password_change',
+        'profile_update',
+        'permission_change',
+        'page_visit',
+        'failed_access',
+        'account_status_change',
+        'user_created',
+        'user_deleted',
+        'profile_assigned',
+        'profile_removed',
+        'permission_profile_created',
+        'permission_profile_updated',
+        'permission_profile_deleted',
+      ]
+    > &
+      Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    details: Schema.Attribute.JSON;
+    ipAddress: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 45;
+      }>;
+    isRead: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::user-activity-log.user-activity-log'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    > &
+      Schema.Attribute.Required;
+    userAgent: Schema.Attribute.Text;
   };
 }
 
@@ -1095,28 +1253,57 @@ export interface PluginUsersPermissionsUser
     draftAndPublish: false;
   };
   attributes: {
+    accountExpiration: Schema.Attribute.DateTime;
+    accountStatus: Schema.Attribute.Enumeration<
+      ['Active', 'Suspended', 'Disabled', 'Locked']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'Active'>;
+    adminNotes: Schema.Attribute.Text & Schema.Attribute.Private;
+    avatarFile: Schema.Attribute.Media<'images'>;
+    avatarUrl: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
+    bio: Schema.Attribute.Text &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     confirmationToken: Schema.Attribute.String & Schema.Attribute.Private;
     confirmed: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    displayName: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 100;
+      }>;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    emailVerified: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    forcePasswordReset: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
+    lastLoginAt: Schema.Attribute.DateTime;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'plugin::users-permissions.user'
     > &
       Schema.Attribute.Private;
+    loginCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     password: Schema.Attribute.Password &
       Schema.Attribute.Private &
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    permissionProfiles: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::permission-profile.permission-profile'
+    >;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;
@@ -1137,6 +1324,9 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 3;
       }>;
+    userRole: Schema.Attribute.Enumeration<['sysadmin', 'reguser']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'reguser'>;
   };
 }
 
@@ -1151,9 +1341,12 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::category.category': ApiCategoryCategory;
+      'api::login-history.login-history': ApiLoginHistoryLoginHistory;
       'api::opinion.opinion': ApiOpinionOpinion;
+      'api::permission-profile.permission-profile': ApiPermissionProfilePermissionProfile;
       'api::quote-draft.quote-draft': ApiQuoteDraftQuoteDraft;
       'api::statement.statement': ApiStatementStatement;
+      'api::user-activity-log.user-activity-log': ApiUserActivityLogUserActivityLog;
       'api::user-rating.user-rating': ApiUserRatingUserRating;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;

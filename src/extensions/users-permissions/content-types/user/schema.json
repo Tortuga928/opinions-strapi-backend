@@ -71,6 +71,64 @@
       "relation": "oneToMany",
       "target": "api::user-rating.user-rating",
       "mappedBy": "users_permissions_user"
+    },
+    "userRole": {
+      "type": "enumeration",
+      "enum": ["sysadmin", "reguser"],
+      "default": "reguser",
+      "required": true
+    },
+    "displayName": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "bio": {
+      "type": "text",
+      "maxLength": 500
+    },
+    "avatarUrl": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "avatarFile": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
+    "accountStatus": {
+      "type": "enumeration",
+      "enum": ["Active", "Suspended", "Disabled", "Locked"],
+      "default": "Active",
+      "required": true
+    },
+    "forcePasswordReset": {
+      "type": "boolean",
+      "default": false
+    },
+    "accountExpiration": {
+      "type": "datetime"
+    },
+    "adminNotes": {
+      "type": "text",
+      "private": true
+    },
+    "lastLoginAt": {
+      "type": "datetime"
+    },
+    "loginCount": {
+      "type": "integer",
+      "default": 0
+    },
+    "emailVerified": {
+      "type": "boolean",
+      "default": false
+    },
+    "permissionProfiles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::permission-profile.permission-profile",
+      "mappedBy": "users"
     }
   }
 }

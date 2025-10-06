@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "login_histories",
+  "info": {
+    "singularName": "login-history",
+    "pluralName": "login-histories",
+    "displayName": "Login History",
+    "description": "Tracks user login attempts and sessions"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "required": true
+    },
+    "loginTime": {
+      "type": "datetime",
+      "required": true
+    },
+    "logoutTime": {
+      "type": "datetime"
+    },
+    "ipAddress": {
+      "type": "string",
+      "maxLength": 45
+    },
+    "userAgent": {
+      "type": "text"
+    },
+    "success": {
+      "type": "boolean",
+      "required": true,
+      "default": true
+    },
+    "failureReason": {
+      "type": "string",
+      "maxLength": 255
+    }
+  }
+}

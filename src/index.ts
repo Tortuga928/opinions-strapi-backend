@@ -7,7 +7,85 @@ export default {
    *
    * This gives you an opportunity to extend code.
    */
-  register(/* { strapi }: { strapi: Core.Strapi } */) {},
+  register({ strapi }) {
+    console.log('[index.ts register] Extending users-permissions plugin');
+
+    // Extend users-permissions plugin auth controller
+    const originalRegister = strapi.plugins['users-permissions'].controllers.auth.register;
+    const originalLogin = strapi.plugins['users-permissions'].controllers.auth.login;
+    const originalCallback = strapi.plugins['users-permissions'].controllers.auth.callback;
+
+    // Override register to add activity logging
+    strapi.plugins['users-permissions'].controllers.auth.register = async (ctx) => {
+      console.log('[Auth Extension] register() called');
+      await originalRegister(ctx);
+
+      if (ctx.response.body && ctx.response.body.user) {
+        const userId = ctx.response.body.user.id;
+
+        // Log user creation activity
+        const activityLogger = strapi.service('api::activity-logger.activity-logger');
+        if (activityLogger) {
+          console.log('[Auth Extension] Logging user_created for user', userId);
+          await activityLogger.logActivity(userId, 'user_created', {
+            username: ctx.response.body.user.username,
+            email: ctx.response.body.user.email
+          }, ctx);
+        }
+      }
+    };
+
+    // Override login to track login activity
+    strapi.plugins['users-permissions'].controllers.auth.login = async (ctx) => {
+      console.log('[Auth Extension] login() called');
+      await originalLogin(ctx);
+
+      if (ctx.response.body && ctx.response.body.user) {
+        await handleSuccessfulLogin(ctx.response.body.user.id, ctx, strapi);
+      }
+    };
+
+    // Override callback for OAuth logins
+    strapi.plugins['users-permissions'].controllers.auth.callback = async (ctx) => {
+      await originalCallback(ctx);
+
+      if (ctx.response.body && ctx.response.body.user) {
+        await handleSuccessfulLogin(ctx.response.body.user.id, ctx, strapi);
+      }
+    };
+
+    console.log('[index.ts register] Auth controller extended successfully');
+
+    // Helper function for login tracking
+    async function handleSuccessfulLogin(userId: number, ctx: any, strapi: any) {
+      try {
+        const user = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { id: userId }
+        });
+
+        // Update login count and last login time
+        await strapi.query('plugin::users-permissions.user').update({
+          where: { id: userId },
+          data: {
+            lastLoginAt: new Date(),
+            loginCount: (user.loginCount || 0) + 1
+          }
+        });
+
+        // Log login activity and history
+        const activityLogger = strapi.service('api::activity-logger.activity-logger');
+        if (activityLogger) {
+          await activityLogger.logActivity(userId, 'login', {
+            username: user.username
+          }, ctx);
+
+          await activityLogger.logLogin(userId, { success: true }, ctx);
+        }
+      } catch (error) {
+        console.error('[Auth Extension] Error tracking login activity:', error);
+      }
+    }
+  },
 
   /**
    * An asynchronous bootstrap function that runs before
@@ -48,6 +126,48 @@ export default {
       console.log('📋 Categories already exist, skipping seed');
     }
 
+    // Create default sysadmin user for testing
+    try {
+      const existing = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { username: 'testsysadmin' }
+      });
+
+      if (!existing) {
+        console.log('🔧 Creating default testsysadmin user...');
+        const bcrypt = require('bcryptjs');
+        const hashedPassword = await bcrypt.hash('TestAdmin123!', 10);
+
+        const user = await strapi.query('plugin::users-permissions.user').create({
+          data: {
+            username: 'testsysadmin',
+            email: 'testsysadmin@test.com',
+            password: hashedPassword,
+            confirmed: true,
+            blocked: false,
+            userRole: 'sysadmin'
+          }
+        });
+
+        // Generate JWT token for testing
+        const jwtService = strapi.plugin('users-permissions').service('jwt');
+        const token = jwtService.issue({ id: user.id });
+
+        console.log('✅ testsysadmin user created');
+        console.log('📝 JWT Token:', token);
+        console.log('💡 Use this in your tests:');
+        console.log(`   export TOKEN='${token}'`);
+      } else {
+        console.log('👤 testsysadmin user already exists');
+
+        // Generate token for existing user too
+        const jwtService = strapi.plugin('users-permissions').service('jwt');
+        const token = jwtService.issue({ id: existing.id });
+        console.log('📝 JWT Token for existing user:', token);
+      }
+    } catch (error) {
+      console.error('❌ Error creating testsysadmin:', error);
+    }
+
     // Configure quote-draft permissions for authenticated users
     try {
       const pluginStore = strapi.store({ type: 'plugin', name: 'users-permissions' });
@@ -84,8 +204,29 @@ export default {
 
         currentPermissions.authenticated['api::quote-draft'] = quoteDraftPermissions;
 
+        // Set user-activity-log permissions
+        const activityLogPermissions = {
+          controllers: {
+            'user-activity-log': {
+              find: { enabled: true },
+              findOne: { enabled: true },
+              update: { enabled: true },
+              count: { enabled: true },
+              markAllAsRead: { enabled: true }
+            }
+          }
+        };
+
+        // Merge with existing permissions
+        if (!currentPermissions.authenticated['api::user-activity-log']) {
+          currentPermissions.authenticated['api::user-activity-log'] = {};
+        }
+
+        currentPermissions.authenticated['api::user-activity-log'] = activityLogPermissions;
+
         await pluginStore.set({ key: 'grant', value: currentPermissions });
         console.log('✅ Quote-draft permissions configured');
+        console.log('✅ User-activity-log permissions configured');
       }
     } catch (error) {
       console.error('❌ Error configuring quote-draft permissions:', error);

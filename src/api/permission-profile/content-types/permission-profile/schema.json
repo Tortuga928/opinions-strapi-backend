@@ -1,0 +1,42 @@
+{
+  "kind": "collectionType",
+  "collectionName": "permission_profiles",
+  "info": {
+    "singularName": "permission-profile",
+    "pluralName": "permission-profiles",
+    "displayName": "Permission Profile",
+    "description": "User permission profiles for access control"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "maxLength": 100
+    },
+    "description": {
+      "type": "text",
+      "maxLength": 500
+    },
+    "permissions": {
+      "type": "json",
+      "required": true,
+      "default": []
+    },
+    "isSystemProfile": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "users": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "permissionProfiles"
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "kind": "collectionType",
+  "collectionName": "user_activity_logs",
+  "info": {
+    "singularName": "user-activity-log",
+    "pluralName": "user-activity-logs",
+    "displayName": "User Activity Log",
+    "description": "Tracks user activity for audit trail"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "required": true
+    },
+    "activityType": {
+      "type": "enumeration",
+      "enum": [
+        "login",
+        "logout",
+        "password_change",
+        "profile_update",
+        "permission_change",
+        "page_visit",
+        "failed_access",
+        "account_status_change",
+        "user_created",
+        "user_deleted",
+        "profile_assigned",
+        "profile_removed",
+        "permission_profile_created",
+        "permission_profile_updated",
+        "permission_profile_deleted"
+      ],
+      "required": true
+    },
+    "details": {
+      "type": "json",
+      "required": false
+    },
+    "ipAddress": {
+      "type": "string",
+      "maxLength": 45
+    },
+    "userAgent": {
+      "type": "text"
+    },
+    "isRead": {
+      "type": "boolean",
+      "default": false,
+      "required": false
+    }
+  }
+}
