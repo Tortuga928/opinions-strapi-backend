@@ -15,7 +15,7 @@ export default {
     const originalLogin = strapi.plugins['users-permissions'].controllers.auth.login;
     const originalCallback = strapi.plugins['users-permissions'].controllers.auth.callback;
 
-    // Override register to add activity logging
+    // Override register to add activity logging and include custom fields
     strapi.plugins['users-permissions'].controllers.auth.register = async (ctx) => {
       console.log('[Auth Extension] register() called');
       await originalRegister(ctx);
@@ -32,16 +32,50 @@ export default {
             email: ctx.response.body.user.email
           }, ctx);
         }
+
+        // Fetch full user object with custom fields to include in response
+        const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { id: userId }
+        });
+
+        // Add custom fields to response (userRole, accountStatus, etc.)
+        if (fullUser) {
+          ctx.response.body.user = {
+            ...ctx.response.body.user,
+            userRole: fullUser.userRole,
+            accountStatus: fullUser.accountStatus,
+            displayName: fullUser.displayName,
+            bio: fullUser.bio,
+            avatarUrl: fullUser.avatarUrl
+          };
+        }
       }
     };
 
-    // Override login to track login activity
+    // Override login to track login activity and include custom user fields
     strapi.plugins['users-permissions'].controllers.auth.login = async (ctx) => {
       console.log('[Auth Extension] login() called');
       await originalLogin(ctx);
 
       if (ctx.response.body && ctx.response.body.user) {
         await handleSuccessfulLogin(ctx.response.body.user.id, ctx, strapi);
+
+        // Fetch full user object with custom fields to include in response
+        const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { id: ctx.response.body.user.id }
+        });
+
+        // Add custom fields to response (userRole, accountStatus, etc.)
+        if (fullUser) {
+          ctx.response.body.user = {
+            ...ctx.response.body.user,
+            userRole: fullUser.userRole,
+            accountStatus: fullUser.accountStatus,
+            displayName: fullUser.displayName,
+            bio: fullUser.bio,
+            avatarUrl: fullUser.avatarUrl
+          };
+        }
       }
     };
 
@@ -51,6 +85,23 @@ export default {
 
       if (ctx.response.body && ctx.response.body.user) {
         await handleSuccessfulLogin(ctx.response.body.user.id, ctx, strapi);
+
+        // Fetch full user object with custom fields to include in response
+        const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { id: ctx.response.body.user.id }
+        });
+
+        // Add custom fields to response (userRole, accountStatus, etc.)
+        if (fullUser) {
+          ctx.response.body.user = {
+            ...ctx.response.body.user,
+            userRole: fullUser.userRole,
+            accountStatus: fullUser.accountStatus,
+            displayName: fullUser.displayName,
+            bio: fullUser.bio,
+            avatarUrl: fullUser.avatarUrl
+          };
+        }
       }
     };
 
