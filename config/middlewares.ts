@@ -25,7 +25,8 @@ export default [
         'http://localhost:1338',
         'http://localhost:1339',
         'https://www.nleos.com',
-        'https://nleos.com'
+        'https://nleos.com',
+        'https://opinions-latest.onrender.com'
       ],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
       headers: [
