@@ -105,38 +105,7 @@ export default {
       }
     };
 
-    // Extend users-permissions user controller for /users/me endpoint
-    const originalMe = strapi.plugins['users-permissions'].controllers.user.me;
-
-    strapi.plugins['users-permissions'].controllers.user.me = async (ctx) => {
-      // Call original me function to get user
-      await originalMe(ctx);
-
-      // If response has user data, fetch full user object with custom fields
-      if (ctx.body) {
-        const userId = ctx.body.id || ctx.state.user?.id;
-
-        if (userId) {
-          const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
-            where: { id: userId }
-          });
-
-          // Add custom fields to response
-          if (fullUser) {
-            ctx.body = {
-              ...ctx.body,
-              userRole: fullUser.userRole,
-              accountStatus: fullUser.accountStatus,
-              displayName: fullUser.displayName,
-              bio: fullUser.bio,
-              avatarUrl: fullUser.avatarUrl
-            };
-          }
-        }
-      }
-    };
-
-    console.log('[index.ts register] Auth and User controllers extended successfully');
+    console.log('[index.ts register] Auth controller extended successfully');
 
     // Helper function for login tracking
     async function handleSuccessfulLogin(userId: number, ctx: any, strapi: any) {
