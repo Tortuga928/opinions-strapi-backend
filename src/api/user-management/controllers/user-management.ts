@@ -145,9 +145,11 @@ export default {
       });
 
       return {
-        user,
-        activityLogs,
-        loginHistory
+        data: {
+          ...user,
+          activityLogs,
+          loginHistory
+        }
       };
     } catch (error) {
       strapi.log.error('Error fetching user details:', error);
@@ -353,7 +355,7 @@ export default {
   /**
    * Update own profile (reguser and sysadmin)
    * PUT /api/user-management/profile
-   * Body: { displayName, bio, avatarUrl, username, email }
+   * Body: { displayName, bio, avatarId, username, email, currentPassword }
    */
   async updateOwnProfile(ctx) {
     // Validate JWT and populate ctx.state.user
@@ -363,32 +365,156 @@ export default {
       return ctx.unauthorized('You must be logged in');
     }
 
-    const { displayName, bio, avatarUrl, username, email } = ctx.request.body;
+    const { displayName, bio, avatarId, username, email, currentPassword } = ctx.request.body;
 
     try {
       const updateData: any = {};
-
-      if (displayName !== undefined) updateData.displayName = displayName;
-      if (bio !== undefined) updateData.bio = bio;
-      if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
-      if (username !== undefined) updateData.username = username;
-      if (email !== undefined) updateData.email = email;
-
-      const updatedUser = await strapi.entityService.update('plugin::users-permissions.user', currentUser.id, {
-        data: updateData
-      });
-
-      // Log activity
       const activityLogger = strapi.service('api::activity-logger.activity-logger');
-      if (activityLogger) {
-        const changes = Object.keys(updateData).join(', ');
-        await activityLogger.logActivity(currentUser.id, 'profile_update', {
-          changes,
-          selfUpdate: true
-        }, ctx);
+
+      // Validate displayName (3-50 characters)
+      if (displayName !== undefined) {
+        if (typeof displayName !== 'string' || displayName.length < 3 || displayName.length > 50) {
+          return ctx.badRequest('Display name must be between 3 and 50 characters');
+        }
+        updateData.displayName = displayName;
       }
 
-      return { data: updatedUser };
+      // Validate bio (max 500 characters)
+      if (bio !== undefined) {
+        if (typeof bio !== 'string' || bio.length > 500) {
+          return ctx.badRequest('Bio must be 500 characters or less');
+        }
+        updateData.bio = bio;
+      }
+
+      // Validate and update avatarId
+      if (avatarId !== undefined) {
+        const avatarService = strapi.service('api::avatar.avatar');
+        if (!avatarService || !avatarService.isValidAvatarId(avatarId)) {
+          return ctx.badRequest('Invalid avatar ID');
+        }
+
+        const oldAvatarId = currentUser.avatarId;
+        if (oldAvatarId !== avatarId) {
+          updateData.avatarId = avatarId;
+
+          // Log avatar change
+          if (activityLogger) {
+            await activityLogger.logActivity(currentUser.id, 'avatar_changed', {
+              oldAvatar: oldAvatarId,
+              newAvatar: avatarId,
+              selfUpdate: true
+            }, ctx);
+          }
+        }
+      }
+
+      // Handle username change (requires password confirmation)
+      if (username !== undefined && username !== currentUser.username) {
+        // Validate username format (3-20 chars, alphanumeric + underscore)
+        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        if (!usernameRegex.test(username)) {
+          return ctx.badRequest('Username must be 3-20 characters (alphanumeric and underscore only)');
+        }
+
+        // Require password confirmation for username change
+        if (!currentPassword) {
+          return ctx.badRequest('Password confirmation required to change username');
+        }
+
+        // Verify password
+        const validPassword = await strapi.plugins['users-permissions'].services.user.validatePassword(
+          currentPassword,
+          currentUser.password
+        );
+
+        if (!validPassword) {
+          return ctx.badRequest('Invalid password');
+        }
+
+        // Check if username is already taken
+        const existingUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { username }
+        });
+
+        if (existingUser && existingUser.id !== currentUser.id) {
+          return ctx.badRequest('Username already taken');
+        }
+
+        const oldUsername = currentUser.username;
+        updateData.username = username;
+
+        // Log username change
+        if (activityLogger) {
+          await activityLogger.logActivity(currentUser.id, 'username_changed', {
+            oldUsername,
+            newUsername: username,
+            selfUpdate: true
+          }, ctx);
+        }
+      }
+
+      // Handle email change (requires verification)
+      if (email !== undefined && email !== currentUser.email) {
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return ctx.badRequest('Invalid email format');
+        }
+
+        // Check if email is already taken
+        const existingUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { email }
+        });
+
+        if (existingUser && existingUser.id !== currentUser.id) {
+          return ctx.badRequest('Email already in use');
+        }
+
+        // Generate email verification token
+        const crypto = require('crypto');
+        const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+
+        const oldEmail = currentUser.email;
+        updateData.pendingEmail = email;
+        updateData.emailVerificationToken = emailVerificationToken;
+
+        // TODO: Send verification email (Phase 3)
+        // For now, just log the activity
+        if (activityLogger) {
+          await activityLogger.logActivity(currentUser.id, 'email_changed', {
+            oldEmail,
+            newEmail: email,
+            status: 'pending_verification',
+            selfUpdate: true
+          }, ctx);
+        }
+      }
+
+      // Update user if there are changes
+      if (Object.keys(updateData).length > 0) {
+        const updatedUser = await strapi.entityService.update('plugin::users-permissions.user', currentUser.id, {
+          data: updateData
+        });
+
+        // Log general profile update
+        if (activityLogger) {
+          const changes = Object.keys(updateData)
+            .filter(key => !['emailVerificationToken', 'pendingEmail'].includes(key))
+            .join(', ');
+
+          if (changes) {
+            await activityLogger.logActivity(currentUser.id, 'profile_update', {
+              changes,
+              selfUpdate: true
+            }, ctx);
+          }
+        }
+
+        return { data: updatedUser };
+      }
+
+      return { data: currentUser };
     } catch (error) {
       strapi.log.error('Error updating own profile:', error);
       return ctx.internalServerError('Failed to update profile');
@@ -416,6 +542,162 @@ export default {
     } catch (error) {
       strapi.log.error('Error fetching own profile:', error);
       return ctx.internalServerError('Failed to fetch profile');
+    }
+  },
+
+  /**
+   * Change own password (reguser and sysadmin)
+   * POST /api/user-management/change-password
+   * Body: { currentPassword, newPassword, confirmPassword }
+   */
+  async changeOwnPassword(ctx) {
+    // Validate JWT and populate ctx.state.user
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser) {
+      return ctx.unauthorized('You must be logged in');
+    }
+
+    const { currentPassword, newPassword, confirmPassword } = ctx.request.body;
+
+    try {
+      // Validate required fields
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return ctx.badRequest('Current password, new password, and confirmation are required');
+      }
+
+      // Validate new password matches confirmation
+      if (newPassword !== confirmPassword) {
+        return ctx.badRequest('New password and confirmation do not match');
+      }
+
+      // Validate new password is different from current
+      if (currentPassword === newPassword) {
+        return ctx.badRequest('New password must be different from current password');
+      }
+
+      // Validate password strength (min 6 characters as per user schema)
+      if (newPassword.length < 6) {
+        return ctx.badRequest('New password must be at least 6 characters long');
+      }
+
+      // Verify current password
+      const validPassword = await strapi.plugins['users-permissions'].services.user.validatePassword(
+        currentPassword,
+        currentUser.password
+      );
+
+      if (!validPassword) {
+        return ctx.badRequest('Current password is incorrect');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await strapi.entityService.update('plugin::users-permissions.user', currentUser.id, {
+        data: {
+          password: hashedPassword
+        }
+      });
+
+      // Log activity
+      const activityLogger = strapi.service('api::activity-logger.activity-logger');
+      if (activityLogger) {
+        await activityLogger.logActivity(currentUser.id, 'password_change', {
+          selfChange: true,
+          timestamp: new Date()
+        }, ctx);
+      }
+
+      return {
+        message: 'Password changed successfully'
+      };
+    } catch (error) {
+      strapi.log.error('Error changing password:', error);
+      return ctx.internalServerError('Failed to change password');
+    }
+  },
+
+  /**
+   * GET /api/user-management/stats
+   * Get account statistics for the authenticated user
+   */
+  async getAccountStats(ctx) {
+    try {
+      const currentUser = await authenticateRequest(ctx);
+
+      if (!currentUser) {
+        return ctx.unauthorized('You must be logged in to view account statistics');
+      }
+
+      // Calculate account age in days
+      const createdAt = new Date(currentUser.createdAt);
+      const now = new Date();
+      const accountAgeDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Get last login timestamp
+      const lastLoginAt = currentUser.lastLoginAt ? new Date(currentUser.lastLoginAt) : null;
+
+      // Calculate profile completeness percentage
+      let completedFields = 0;
+      const totalFields = 6; // username, email, displayName, bio, avatarId, confirmed
+
+      if (currentUser.username) completedFields++;
+      if (currentUser.email && currentUser.confirmed) completedFields++; // Email must be confirmed
+      if (currentUser.displayName) completedFields++;
+      if (currentUser.bio) completedFields++;
+      if (currentUser.avatarId) completedFields++;
+      if (currentUser.confirmed) completedFields++; // Account confirmed
+
+      const profileCompleteness = Math.round((completedFields / totalFields) * 100);
+
+      // Get total ratings given by user
+      const ratingsCount = await strapi.db.query('api::user-rating.user-rating').count({
+        where: { users_permissions_user: currentUser.id }
+      });
+
+      // Get total activity log entries for user
+      const activityCount = await strapi.db.query('api::user-activity-log.user-activity-log').count({
+        where: { user: currentUser.id }
+      });
+
+      // Get login count
+      const loginCount = currentUser.loginCount || 0;
+
+      // Return comprehensive statistics
+      return {
+        data: {
+          accountAge: {
+            days: accountAgeDays,
+            createdAt: createdAt.toISOString()
+          },
+          loginStats: {
+            loginCount,
+            lastLoginAt: lastLoginAt ? lastLoginAt.toISOString() : null
+          },
+          profileCompleteness: {
+            percentage: profileCompleteness,
+            completedFields,
+            totalFields
+          },
+          activityStats: {
+            ratingsGiven: ratingsCount,
+            totalActivities: activityCount
+          },
+          userInfo: {
+            username: currentUser.username,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            avatarId: currentUser.avatarId,
+            userRole: currentUser.userRole,
+            accountStatus: currentUser.accountStatus
+          }
+        }
+      };
+    } catch (error) {
+      strapi.log.error('Error fetching account statistics:', error);
+      return ctx.internalServerError('Failed to fetch account statistics');
     }
   }
 };

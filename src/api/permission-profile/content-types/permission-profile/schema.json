@@ -5,7 +5,7 @@
     "singularName": "permission-profile",
     "pluralName": "permission-profiles",
     "displayName": "Permission Profile",
-    "description": "User permission profiles for access control"
+    "description": "User permission groups"
   },
   "options": {
     "draftAndPublish": false

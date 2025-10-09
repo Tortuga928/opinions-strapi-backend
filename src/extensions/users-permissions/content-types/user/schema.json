@@ -86,15 +86,10 @@
       "type": "text",
       "maxLength": 500
     },
-    "avatarUrl": {
+    "avatarId": {
       "type": "string",
-      "maxLength": 500
-    },
-    "avatarFile": {
-      "type": "media",
-      "multiple": false,
-      "required": false,
-      "allowedTypes": ["images"]
+      "default": "turtle",
+      "maxLength": 50
     },
     "accountStatus": {
       "type": "enumeration",
@@ -123,6 +118,17 @@
     "emailVerified": {
       "type": "boolean",
       "default": false
+    },
+    "emailVerificationToken": {
+      "type": "string",
+      "configurable": false,
+      "private": true,
+      "searchable": false
+    },
+    "pendingEmail": {
+      "type": "email",
+      "configurable": false,
+      "private": true
     },
     "permissionProfiles": {
       "type": "relation",

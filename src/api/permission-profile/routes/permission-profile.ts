@@ -1,6 +1,6 @@
 /**
- * Permission Profile Routes
- * All routes require sysadmin authentication (handled in controller)
+ * Permission Profile Custom Routes
+ * All routes restricted to sysadmin (auth handled in controller)
  */
 
 export default {

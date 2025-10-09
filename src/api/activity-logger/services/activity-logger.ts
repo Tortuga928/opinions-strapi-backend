@@ -18,7 +18,10 @@ type ActivityType =
   | 'profile_removed'
   | 'permission_profile_created'
   | 'permission_profile_updated'
-  | 'permission_profile_deleted';
+  | 'permission_profile_deleted'
+  | 'email_changed'
+  | 'username_changed'
+  | 'avatar_changed';
 
 interface ActivityDetails {
   [key: string]: any;
@@ -40,7 +43,7 @@ export default () => ({
     ctx?: any
   ) {
     try {
-      console.log(`[Activity Logger] Attempting to log ${activityType} for user ${userId}`);
+      // REMOVED FOR PRODUCTION: console.log(`[Activity Logger] Attempting to log ${activityType} for user ${userId}`);
       const ipAddress = ctx?.request?.ip || ctx?.ip || 'unknown';
       const userAgent = ctx?.request?.header?.['user-agent'] || 'unknown';
 
@@ -55,7 +58,7 @@ export default () => ({
         }
       });
 
-      console.log(`[Activity Logger] Successfully logged ${activityType} for user ${userId}`, result);
+      // REMOVED FOR PRODUCTION: console.log(`[Activity Logger] Successfully logged ${activityType} for user ${userId}`, result);
       strapi.log.debug(`Activity logged: ${activityType} for user ${userId}`);
     } catch (error) {
       console.error(`[Activity Logger] Error logging ${activityType} for user ${userId}:`, error);

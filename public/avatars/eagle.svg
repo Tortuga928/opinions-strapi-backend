@@ -1,0 +1,47 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="eagleFeathers" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#5d4e37;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3e342a;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="eagleHead" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#f5f5f5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e0e0;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#e3f2fd"/>
+
+  <!-- Wings -->
+  <ellipse cx="50" cy="130" rx="40" ry="60" fill="url(#eagleFeathers)" transform="rotate(-25 50 130)"/>
+  <ellipse cx="150" cy="130" rx="40" ry="60" fill="url(#eagleFeathers)" transform="rotate(25 150 130)"/>
+
+  <!-- Body -->
+  <ellipse cx="100" cy="130" rx="45" ry="55" fill="url(#eagleFeathers)"/>
+
+  <!-- Chest -->
+  <ellipse cx="100" cy="125" rx="30" ry="35" fill="#8b7355"/>
+
+  <!-- Head (white) -->
+  <circle cx="100" cy="80" r="38" fill="url(#eagleHead)"/>
+
+  <!-- Eyes -->
+  <circle cx="85" cy="75" r="8" fill="#f4d03f"/>
+  <circle cx="115" cy="75" r="8" fill="#f4d03f"/>
+  <circle cx="85" cy="75" r="5" fill="#1a1a1a"/>
+  <circle cx="115" cy="75" r="5" fill="#1a1a1a"/>
+  <circle cx="83" cy="73" r="2" fill="white"/>
+  <circle cx="113" cy="73" r="2" fill="white"/>
+
+  <!-- Eye ridges (fierce look) -->
+  <path d="M 75 68 Q 80 65 90 68" stroke="#3a3a3a" stroke-width="2" fill="none"/>
+  <path d="M 110 68 Q 115 65 125 68" stroke="#3a3a3a" stroke-width="2" fill="none"/>
+
+  <!-- Beak -->
+  <path d="M 100 85 Q 105 90 100 95 Q 95 90 100 85 Z" fill="#f4b942"/>
+  <path d="M 100 85 L 100 75" stroke="#d4941a" stroke-width="1.5"/>
+
+  <!-- Beak curve -->
+  <path d="M 100 95 Q 102 100 100 103" stroke="#d4941a" stroke-width="2" fill="none"/>
+</svg>

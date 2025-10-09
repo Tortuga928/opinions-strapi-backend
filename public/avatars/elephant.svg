@@ -1,0 +1,37 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="elephantSkin" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#9a9a9a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7a7a7a;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#f0f0e8"/>
+
+  <!-- Ears -->
+  <ellipse cx="55" cy="95" rx="35" ry="45" fill="url(#elephantSkin)"/>
+  <ellipse cx="145" cy="95" rx="35" ry="45" fill="url(#elephantSkin)"/>
+  <ellipse cx="55" cy="95" rx="25" ry="35" fill="#8a8a8a"/>
+  <ellipse cx="145" cy="95" rx="25" ry="35" fill="#8a8a8a"/>
+
+  <!-- Head -->
+  <circle cx="100" cy="95" r="50" fill="url(#elephantSkin)"/>
+
+  <!-- Trunk -->
+  <path d="M 100 120 Q 95 140 90 150 Q 88 160 92 165 Q 95 168 98 165 Q 102 160 100 150 Q 98 140 100 120"
+        fill="url(#elephantSkin)" stroke="#6a6a6a" stroke-width="1"/>
+
+  <!-- Trunk tip -->
+  <ellipse cx="92" cy="165" rx="6" ry="4" fill="#6a6a6a"/>
+
+  <!-- Eyes -->
+  <circle cx="80" cy="85" r="6" fill="#2a2a2a"/>
+  <circle cx="120" cy="85" r="6" fill="#2a2a2a"/>
+  <circle cx="81" cy="83" r="2" fill="white"/>
+  <circle cx="121" cy="83" r="2" fill="white"/>
+
+  <!-- Tusks -->
+  <path d="M 85 110 Q 75 115 70 125" stroke="#f5f5dc" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M 115 110 Q 125 115 130 125" stroke="#f5f5dc" stroke-width="4" fill="none" stroke-linecap="round"/>
+</svg>

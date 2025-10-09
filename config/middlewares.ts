@@ -12,23 +12,44 @@ export default [
           upgradeInsecureRequests: null,
         },
       },
+      frameguard: {
+        action: 'deny',  // X-Frame-Options: DENY (prevent clickjacking)
+      },
+      hsts: {
+        maxAge: 31536000,  // 1 year in seconds
+        includeSubDomains: true,
+      },
+      referrerPolicy: {
+        policy: 'strict-origin-when-cross-origin',
+      },
+      permissionsPolicy: {
+        geolocation: [],  // Block geolocation
+        microphone: [],   // Block microphone
+        camera: [],       // Block camera
+      },
     },
   },
+  'global::security-headers', // Custom security headers middleware (adds X-XSS-Protection, removes X-Powered-By)
   {
     name: 'strapi::cors',
     config: {
       origin: [
+        // Development URLs
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3002',
         'http://localhost:3003',
         'http://localhost:1338',
         'http://localhost:1339',
-        'https://www.nleos.com',
-        'https://nleos.com',
-        'https://opinions-latest.onrender.com'
-      ],
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
+        // Production URLs
+        'https://opinions.latest',           // Main frontend URL
+        'https://www.nleos.com',             // Alternative domain
+        'https://nleos.com',                 // Alternative domain (no www)
+        'https://opinions-latest.onrender.com', // Render default URL
+        // Environment variable (optional override)
+        process.env.CLIENT_URL,
+      ].filter(Boolean), // Remove undefined values
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH'],
       headers: [
         'Content-Type',
         'Authorization',

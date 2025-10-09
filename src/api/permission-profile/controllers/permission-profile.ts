@@ -1,6 +1,6 @@
 /**
  * Permission Profile Controller
- * Handles permission profile management (sysadmin only)
+ * Manages permission groups for users (sysadmin only)
  */
 
 /**
@@ -16,7 +16,6 @@ async function authenticateRequest(ctx) {
   const token = authHeader.replace(/^Bearer\s+/, '');
 
   try {
-    // Verify using Strapi's JWT service
     const jwtService = strapi.plugin('users-permissions').service('jwt');
     const decoded = await jwtService.verify(token);
 
@@ -24,7 +23,6 @@ async function authenticateRequest(ctx) {
       return null;
     }
 
-    // Fetch user
     const user = await strapi.query('plugin::users-permissions.user').findOne({
       where: { id: decoded.id }
     });
@@ -33,7 +31,6 @@ async function authenticateRequest(ctx) {
       return null;
     }
 
-    // Populate ctx.state.user for downstream use
     ctx.state.user = user;
     return user;
   } catch (error) {
@@ -48,7 +45,6 @@ export default {
    * GET /api/permission-profiles
    */
   async find(ctx) {
-    // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
     if (!currentUser || currentUser.userRole !== 'sysadmin') {
@@ -57,7 +53,6 @@ export default {
 
     try {
       const profiles = await strapi.entityService.findMany('api::permission-profile.permission-profile', {
-        populate: ['users'],
         sort: { createdAt: 'desc' }
       });
 
@@ -73,7 +68,6 @@ export default {
    * GET /api/permission-profiles/:id
    */
   async findOne(ctx) {
-    // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
     if (!currentUser || currentUser.userRole !== 'sysadmin') {
@@ -83,9 +77,7 @@ export default {
     const { id } = ctx.params;
 
     try {
-      const profile = await strapi.entityService.findOne('api::permission-profile.permission-profile', id, {
-        populate: ['users']
-      });
+      const profile = await strapi.entityService.findOne('api::permission-profile.permission-profile', id);
 
       if (!profile) {
         return ctx.notFound('Permission profile not found');
@@ -101,10 +93,9 @@ export default {
   /**
    * Create permission profile (sysadmin only)
    * POST /api/permission-profiles
-   * Body: { name, description, permissions, isSystemProfile }
+   * Body: { name, description?, permissions: [], isSystemProfile? }
    */
   async create(ctx) {
-    // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
     if (!currentUser || currentUser.userRole !== 'sysadmin') {
@@ -113,32 +104,29 @@ export default {
 
     const { name, description, permissions, isSystemProfile } = ctx.request.body;
 
+    // Validation
+    if (!name || !permissions) {
+      return ctx.badRequest('Name and permissions are required');
+    }
+
+    if (!Array.isArray(permissions)) {
+      return ctx.badRequest('Permissions must be an array');
+    }
+
     try {
-      // Validate required fields
-      if (!name || !permissions) {
-        return ctx.badRequest('Name and permissions are required');
-      }
-
-      // Validate permissions is array
-      if (!Array.isArray(permissions)) {
-        return ctx.badRequest('Permissions must be an array');
-      }
-
       const profile = await strapi.entityService.create('api::permission-profile.permission-profile', {
         data: {
           name,
-          description,
+          description: description || '',
           permissions,
           isSystemProfile: isSystemProfile || false
-        },
-        populate: ['users']
+        }
       });
 
       // Log activity
       const activityLogger = strapi.service('api::activity-logger.activity-logger');
       if (activityLogger) {
         await activityLogger.logActivity(currentUser.id, 'permission_profile_created', {
-          profileId: profile.id,
           profileName: name,
           createdBy: currentUser.username
         }, ctx);
@@ -154,10 +142,9 @@ export default {
   /**
    * Update permission profile (sysadmin only)
    * PUT /api/permission-profiles/:id
-   * Body: { name, description, permissions }
+   * Body: { name?, description?, permissions? }
    */
   async update(ctx) {
-    // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
     if (!currentUser || currentUser.userRole !== 'sysadmin') {
@@ -165,45 +152,36 @@ export default {
     }
 
     const { id } = ctx.params;
-    const { name, description, permissions } = ctx.request.body;
+    const updateData = ctx.request.body;
 
     try {
-      const profile = await strapi.entityService.findOne('api::permission-profile.permission-profile', id);
+      const existingProfile = await strapi.entityService.findOne('api::permission-profile.permission-profile', id);
 
-      if (!profile) {
+      if (!existingProfile) {
         return ctx.notFound('Permission profile not found');
       }
 
       // Prevent updating system profiles
-      if (profile.isSystemProfile) {
+      if (existingProfile.isSystemProfile) {
         return ctx.badRequest('Cannot update system profiles');
       }
 
-      const updateData: any = {};
-
-      if (name !== undefined) updateData.name = name;
-      if (description !== undefined) updateData.description = description;
-      if (permissions !== undefined) {
-        if (!Array.isArray(permissions)) {
-          return ctx.badRequest('Permissions must be an array');
-        }
-        updateData.permissions = permissions;
+      // Validate permissions if provided
+      if (updateData.permissions && !Array.isArray(updateData.permissions)) {
+        return ctx.badRequest('Permissions must be an array');
       }
 
       const updatedProfile = await strapi.entityService.update('api::permission-profile.permission-profile', id, {
-        data: updateData,
-        populate: ['users']
+        data: updateData
       });
 
       // Log activity
       const activityLogger = strapi.service('api::activity-logger.activity-logger');
       if (activityLogger) {
-        const changes = Object.keys(updateData).join(', ');
         await activityLogger.logActivity(currentUser.id, 'permission_profile_updated', {
-          profileId: id,
-          profileName: profile.name,
-          changes,
-          updatedBy: currentUser.username
+          profileName: existingProfile.name,
+          updatedBy: currentUser.username,
+          changes: Object.keys(updateData).join(', ')
         }, ctx);
       }
 
@@ -219,7 +197,6 @@ export default {
    * DELETE /api/permission-profiles/:id
    */
   async delete(ctx) {
-    // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
     if (!currentUser || currentUser.userRole !== 'sysadmin') {
@@ -246,7 +223,6 @@ export default {
       const activityLogger = strapi.service('api::activity-logger.activity-logger');
       if (activityLogger) {
         await activityLogger.logActivity(currentUser.id, 'permission_profile_deleted', {
-          profileId: id,
           profileName: profile.name,
           deletedBy: currentUser.username
         }, ctx);

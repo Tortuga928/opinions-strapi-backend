@@ -9,7 +9,7 @@ export default {
     {
       method: 'GET',
       path: '/user-management/users',
-      handler: 'api::user-management.user-management.listUsers',
+      handler: 'user-management.listUsers',
       config: {
         auth: false,
         policies: [],
@@ -19,7 +19,7 @@ export default {
     {
       method: 'GET',
       path: '/user-management/users/:id',
-      handler: 'api::user-management.user-management.getUserDetails',
+      handler: 'user-management.getUserDetails',
       config: {
         auth: false,
         policies: [],
@@ -29,7 +29,7 @@ export default {
     {
       method: 'PUT',
       path: '/user-management/users/:id',
-      handler: 'api::user-management.user-management.updateUser',
+      handler: 'user-management.updateUser',
       config: {
         auth: false,
         policies: [],
@@ -39,7 +39,7 @@ export default {
     {
       method: 'DELETE',
       path: '/user-management/users/:id',
-      handler: 'api::user-management.user-management.deleteUser',
+      handler: 'user-management.deleteUser',
       config: {
         auth: false,
         policies: [],
@@ -49,7 +49,7 @@ export default {
     {
       method: 'POST',
       path: '/user-management/users/:id/reset-password',
-      handler: 'api::user-management.user-management.resetPassword',
+      handler: 'user-management.resetPassword',
       config: {
         auth: false,
         policies: [],
@@ -61,9 +61,9 @@ export default {
     {
       method: 'GET',
       path: '/user-management/profile',
-      handler: 'api::user-management.user-management.getOwnProfile',
+      handler: 'user-management.getOwnProfile',
       config: {
-        auth: false,
+        auth: false,  // Auth handled in controller via authenticateRequest()
         policies: [],
         middlewares: [],
       }
@@ -71,9 +71,29 @@ export default {
     {
       method: 'PUT',
       path: '/user-management/profile',
-      handler: 'api::user-management.user-management.updateOwnProfile',
+      handler: 'user-management.updateOwnProfile',
       config: {
-        auth: false,
+        auth: false,  // Auth handled in controller via authenticateRequest()
+        policies: [],
+        middlewares: [],
+      }
+    },
+    {
+      method: 'POST',
+      path: '/user-management/change-password',
+      handler: 'user-management.changeOwnPassword',
+      config: {
+        auth: false,  // Auth handled in controller via authenticateRequest()
+        policies: [],
+        middlewares: [],
+      }
+    },
+    {
+      method: 'GET',
+      path: '/user-management/stats',
+      handler: 'user-management.getAccountStats',
+      config: {
+        auth: false,  // Auth handled in controller via authenticateRequest()
         policies: [],
         middlewares: [],
       }

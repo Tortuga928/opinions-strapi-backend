@@ -1,0 +1,54 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wolfGray" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#95a5a6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7f8c8d;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="wolfWhite" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#ecf0f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d5dbde;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#e8eaf6"/>
+
+  <!-- Ears -->
+  <path d="M 65 60 L 55 30 L 80 55 Z" fill="url(#wolfGray)"/>
+  <path d="M 135 60 L 145 30 L 120 55 Z" fill="url(#wolfGray)"/>
+  <path d="M 67 55 L 60 38 L 77 53 Z" fill="#bdc3c7"/>
+  <path d="M 133 55 L 140 38 L 123 53 Z" fill="#bdc3c7"/>
+
+  <!-- Head -->
+  <circle cx="100" cy="100" r="55" fill="url(#wolfGray)"/>
+
+  <!-- Snout -->
+  <ellipse cx="100" cy="115" rx="30" ry="35" fill="url(#wolfWhite)"/>
+  <ellipse cx="100" cy="105" rx="25" ry="20" fill="#d5dbde"/>
+
+  <!-- Eyes -->
+  <ellipse cx="85" cy="90" rx="10" ry="12" fill="#f4d03f"/>
+  <ellipse cx="115" cy="90" rx="10" ry="12" fill="#f4d03f"/>
+  <ellipse cx="85" cy="92" rx="5" ry="8" fill="#1a1a1a"/>
+  <ellipse cx="115" cy="92" rx="5" ry="8" fill="#1a1a1a"/>
+  <ellipse cx="83" cy="88" rx="2" ry="3" fill="white"/>
+  <ellipse cx="113" cy="88" rx="2" ry="3" fill="white"/>
+
+  <!-- Nose -->
+  <ellipse cx="100" cy="118" rx="7" ry="6" fill="#2a2a2a"/>
+
+  <!-- Mouth -->
+  <path d="M 100 118 L 100 125" stroke="#2a2a2a" stroke-width="1.5"/>
+  <path d="M 88 125 Q 100 130 112 125" stroke="#2a2a2a" stroke-width="1.5" fill="none"/>
+
+  <!-- Whisker dots -->
+  <circle cx="75" cy="108" r="2" fill="#5a5a5a"/>
+  <circle cx="70" cy="113" r="2" fill="#5a5a5a"/>
+  <circle cx="125" cy="108" r="2" fill="#5a5a5a"/>
+  <circle cx="130" cy="113" r="2" fill="#5a5a5a"/>
+
+  <!-- Fur details -->
+  <path d="M 100 60 Q 105 65 100 70" stroke="#6a7a7b" stroke-width="1.5" fill="none"/>
+  <path d="M 90 65 Q 95 70 90 75" stroke="#6a7a7b" stroke-width="1" fill="none"/>
+  <path d="M 110 65 Q 105 70 110 75" stroke="#6a7a7b" stroke-width="1" fill="none"/>
+</svg>

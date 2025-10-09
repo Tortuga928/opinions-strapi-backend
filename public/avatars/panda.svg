@@ -1,0 +1,45 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="pandaWhite" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#e8f5e9"/>
+
+  <!-- Bamboo decoration -->
+  <rect x="30" y="140" width="8" height="60" fill="#7cb342" rx="2"/>
+  <rect x="162" y="140" width="8" height="60" fill="#7cb342" rx="2"/>
+
+  <!-- Ears -->
+  <circle cx="65" cy="65" r="20" fill="#1a1a1a"/>
+  <circle cx="135" cy="65" r="20" fill="#1a1a1a"/>
+
+  <!-- Head -->
+  <circle cx="100" cy="100" r="60" fill="url(#pandaWhite)"/>
+
+  <!-- Eye patches -->
+  <ellipse cx="80" cy="95" rx="18" ry="22" fill="#1a1a1a" transform="rotate(-20 80 95)"/>
+  <ellipse cx="120" cy="95" rx="18" ry="22" fill="#1a1a1a" transform="rotate(20 120 95)"/>
+
+  <!-- Eyes -->
+  <circle cx="80" cy="95" r="8" fill="white"/>
+  <circle cx="120" cy="95" r="8" fill="white"/>
+  <circle cx="78" cy="95" r="5" fill="#1a1a1a"/>
+  <circle cx="118" cy="95" r="5" fill="#1a1a1a"/>
+  <circle cx="79" cy="93" r="2" fill="white"/>
+  <circle cx="119" cy="93" r="2" fill="white"/>
+
+  <!-- Nose -->
+  <ellipse cx="100" cy="115" rx="8" ry="6" fill="#1a1a1a"/>
+
+  <!-- Mouth -->
+  <path d="M 100 115 L 100 122" stroke="#1a1a1a" stroke-width="2"/>
+  <path d="M 88 125 Q 100 132 112 125" stroke="#1a1a1a" stroke-width="2" fill="none"/>
+
+  <!-- Cheeks -->
+  <circle cx="70" cy="115" r="8" fill="#ffebee" opacity="0.6"/>
+  <circle cx="130" cy="115" r="8" fill="#ffebee" opacity="0.6"/>
+</svg>

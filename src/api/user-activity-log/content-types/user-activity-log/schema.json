@@ -35,7 +35,10 @@
         "profile_removed",
         "permission_profile_created",
         "permission_profile_updated",
-        "permission_profile_deleted"
+        "permission_profile_deleted",
+        "email_changed",
+        "username_changed",
+        "avatar_changed"
       ],
       "required": true
     },

@@ -1,0 +1,51 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="catFur" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#f5f5f5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d5d5d5;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="earInside" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffb3ba;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffa3aa;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#fff8e7"/>
+
+  <!-- Ears -->
+  <path d="M 60 70 L 50 35 L 80 60 Z" fill="url(#catFur)" stroke="#c5c5c5" stroke-width="1"/>
+  <path d="M 140 70 L 150 35 L 120 60 Z" fill="url(#catFur)" stroke="#c5c5c5" stroke-width="1"/>
+  <path d="M 62 62 L 56 42 L 75 60 Z" fill="url(#earInside)"/>
+  <path d="M 138 62 L 144 42 L 125 60 Z" fill="url(#earInside)"/>
+
+  <!-- Head -->
+  <circle cx="100" cy="105" r="55" fill="url(#catFur)"/>
+
+  <!-- Stripes -->
+  <path d="M 70 80 Q 75 85 70 90" stroke="#b5b5b5" stroke-width="2" fill="none"/>
+  <path d="M 130 80 Q 125 85 130 90" stroke="#b5b5b5" stroke-width="2" fill="none"/>
+  <path d="M 75 95 Q 80 100 75 105" stroke="#b5b5b5" stroke-width="1.5" fill="none"/>
+  <path d="M 125 95 Q 120 100 125 105" stroke="#b5b5b5" stroke-width="1.5" fill="none"/>
+
+  <!-- Eyes -->
+  <ellipse cx="80" cy="100" rx="12" ry="16" fill="#4a9d5f"/>
+  <ellipse cx="120" cy="100" rx="12" ry="16" fill="#4a9d5f"/>
+  <ellipse cx="80" cy="102" rx="4" ry="10" fill="#1a1a1a"/>
+  <ellipse cx="120" cy="102" rx="4" ry="10" fill="#1a1a1a"/>
+  <ellipse cx="78" cy="96" rx="2" ry="3" fill="white"/>
+  <ellipse cx="118" cy="96" rx="2" ry="3" fill="white"/>
+
+  <!-- Nose -->
+  <path d="M 100 115 L 95 120 Q 100 122 105 120 Z" fill="#ffb3ba"/>
+
+  <!-- Mouth -->
+  <path d="M 100 120 L 100 125" stroke="#5a5a5a" stroke-width="1.5"/>
+  <path d="M 85 125 Q 100 132 115 125" stroke="#5a5a5a" stroke-width="1.5" fill="none"/>
+
+  <!-- Whiskers -->
+  <line x1="40" y1="110" x2="70" y2="108" stroke="#8a8a8a" stroke-width="1"/>
+  <line x1="42" y1="118" x2="70" y2="115" stroke="#8a8a8a" stroke-width="1"/>
+  <line x1="160" y1="110" x2="130" y2="108" stroke="#8a8a8a" stroke-width="1"/>
+  <line x1="158" y1="118" x2="130" y2="115" stroke="#8a8a8a" stroke-width="1"/>
+</svg>

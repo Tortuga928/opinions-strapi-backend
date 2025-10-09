@@ -1,0 +1,52 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="mane" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#d4a574;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#b8935a;stop-opacity:1" />
+    </radialGradient>
+    <radialGradient id="face" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#f4d3a0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e6c28a;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#fef4e8"/>
+
+  <!-- Mane -->
+  <circle cx="100" cy="100" r="75" fill="url(#mane)"/>
+
+  <!-- Mane Details -->
+  <path d="M 100 25 Q 110 30 105 45" fill="#c08550"/>
+  <path d="M 130 40 Q 135 50 125 60" fill="#c08550"/>
+  <path d="M 155 70 Q 158 80 145 85" fill="#c08550"/>
+  <path d="M 165 110 Q 165 120 150 120" fill="#c08550"/>
+  <path d="M 155 140 Q 150 150 135 145" fill="#c08550"/>
+  <path d="M 120 165 Q 115 172 105 165" fill="#c08550"/>
+  <path d="M 70 40 Q 65 50 75 60" fill="#c08550"/>
+  <path d="M 45 70 Q 42 80 55 85" fill="#c08550"/>
+  <path d="M 35 110 Q 35 120 50 120" fill="#c08550"/>
+
+  <!-- Face -->
+  <circle cx="100" cy="105" r="45" fill="url(#face)"/>
+
+  <!-- Ears -->
+  <ellipse cx="70" cy="75" rx="12" ry="18" fill="url(#mane)"/>
+  <ellipse cx="130" cy="75" rx="12" ry="18" fill="url(#mane)"/>
+  <ellipse cx="70" cy="77" rx="7" ry="12" fill="#f4d3a0"/>
+  <ellipse cx="130" cy="77" rx="7" ry="12" fill="#f4d3a0"/>
+
+  <!-- Eyes -->
+  <ellipse cx="85" cy="100" rx="8" ry="10" fill="#3a2a1a"/>
+  <ellipse cx="115" cy="100" rx="8" ry="10" fill="#3a2a1a"/>
+  <circle cx="86" cy="98" r="3" fill="white"/>
+  <circle cx="116" cy="98" r="3" fill="white"/>
+
+  <!-- Nose -->
+  <path d="M 100 110 L 95 120 L 105 120 Z" fill="#3a2a1a"/>
+
+  <!-- Mouth -->
+  <path d="M 95 120 Q 100 125 105 120" stroke="#3a2a1a" stroke-width="2" fill="none"/>
+  <path d="M 85 120 Q 90 118 95 120" stroke="#3a2a1a" stroke-width="1.5" fill="none"/>
+  <path d="M 105 120 Q 110 118 115 120" stroke="#3a2a1a" stroke-width="1.5" fill="none"/>
+</svg>

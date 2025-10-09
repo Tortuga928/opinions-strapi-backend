@@ -8,7 +8,7 @@ export default {
    * This gives you an opportunity to extend code.
    */
   register({ strapi }) {
-    console.log('[index.ts register] Extending users-permissions plugin');
+    // REMOVED FOR PRODUCTION: console.log('[index.ts register] Extending users-permissions plugin');
 
     // Extend users-permissions plugin auth controller
     const originalRegister = strapi.plugins['users-permissions'].controllers.auth.register;
@@ -17,7 +17,7 @@ export default {
 
     // Override register to add activity logging and include custom fields
     strapi.plugins['users-permissions'].controllers.auth.register = async (ctx) => {
-      console.log('[Auth Extension] register() called');
+      // REMOVED FOR PRODUCTION: console.log('[Auth Extension] register() called');
       await originalRegister(ctx);
 
       if (ctx.response.body && ctx.response.body.user) {
@@ -26,7 +26,7 @@ export default {
         // Log user creation activity
         const activityLogger = strapi.service('api::activity-logger.activity-logger');
         if (activityLogger) {
-          console.log('[Auth Extension] Logging user_created for user', userId);
+          // REMOVED FOR PRODUCTION: console.log('[Auth Extension] Logging user_created for user', userId);
           await activityLogger.logActivity(userId, 'user_created', {
             username: ctx.response.body.user.username,
             email: ctx.response.body.user.email
@@ -54,7 +54,7 @@ export default {
 
     // Override login to track login activity and include custom user fields
     strapi.plugins['users-permissions'].controllers.auth.login = async (ctx) => {
-      console.log('[Auth Extension] login() called');
+      // REMOVED FOR PRODUCTION: console.log('[Auth Extension] login() called');
       await originalLogin(ctx);
 
       if (ctx.response.body && ctx.response.body.user) {
@@ -105,7 +105,7 @@ export default {
       }
     };
 
-    console.log('[index.ts register] Auth controller extended successfully');
+    // REMOVED FOR PRODUCTION: console.log('[index.ts register] Auth controller extended successfully');
 
     // Helper function for login tracking
     async function handleSuccessfulLogin(userId: number, ctx: any, strapi: any) {
@@ -164,7 +164,7 @@ export default {
     const existingCategories = await strapi.entityService.findMany('api::category.category');
 
     if (existingCategories.length === 0) {
-      console.log('🌱 Seeding predefined categories...');
+      // REMOVED FOR PRODUCTION: console.log('🌱 Seeding predefined categories...');
 
       for (const category of predefinedCategories) {
         await strapi.entityService.create('api::category.category', {
@@ -172,9 +172,9 @@ export default {
         });
       }
 
-      console.log('✅ Categories seeded successfully');
+      // REMOVED FOR PRODUCTION: console.log('✅ Categories seeded successfully');
     } else {
-      console.log('📋 Categories already exist, skipping seed');
+      // REMOVED FOR PRODUCTION: console.log('📋 Categories already exist, skipping seed');
     }
 
     // Create default sysadmin user for testing
@@ -184,7 +184,7 @@ export default {
       });
 
       if (!existing) {
-        console.log('🔧 Creating default testsysadmin user...');
+        // REMOVED FOR PRODUCTION: console.log('🔧 Creating default testsysadmin user...');
         const bcrypt = require('bcryptjs');
         const hashedPassword = await bcrypt.hash('TestAdmin123!', 10);
 
@@ -203,17 +203,17 @@ export default {
         const jwtService = strapi.plugin('users-permissions').service('jwt');
         const token = jwtService.issue({ id: user.id });
 
-        console.log('✅ testsysadmin user created');
-        console.log('📝 JWT Token:', token);
-        console.log('💡 Use this in your tests:');
-        console.log(`   export TOKEN='${token}'`);
+        // REMOVED FOR PRODUCTION: console.log('✅ testsysadmin user created');
+        // REMOVED FOR PRODUCTION: console.log('📝 JWT Token:', token);
+        // REMOVED FOR PRODUCTION: console.log('💡 Use this in your tests:');
+        // REMOVED FOR PRODUCTION: console.log(`   export TOKEN='${token}'`);
       } else {
-        console.log('👤 testsysadmin user already exists');
+        // REMOVED FOR PRODUCTION: console.log('👤 testsysadmin user already exists');
 
         // Generate token for existing user too
         const jwtService = strapi.plugin('users-permissions').service('jwt');
         const token = jwtService.issue({ id: existing.id });
-        console.log('📝 JWT Token for existing user:', token);
+        // REMOVED FOR PRODUCTION: console.log('📝 JWT Token for existing user:', token);
       }
     } catch (error) {
       console.error('❌ Error creating testsysadmin:', error);
@@ -276,8 +276,8 @@ export default {
         currentPermissions.authenticated['api::user-activity-log'] = activityLogPermissions;
 
         await pluginStore.set({ key: 'grant', value: currentPermissions });
-        console.log('✅ Quote-draft permissions configured');
-        console.log('✅ User-activity-log permissions configured');
+        // REMOVED FOR PRODUCTION: console.log('✅ Quote-draft permissions configured');
+        // REMOVED FOR PRODUCTION: console.log('✅ User-activity-log permissions configured');
       }
     } catch (error) {
       console.error('❌ Error configuring quote-draft permissions:', error);

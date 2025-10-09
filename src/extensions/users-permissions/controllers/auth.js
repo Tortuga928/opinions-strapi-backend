@@ -43,11 +43,11 @@ module.exports = (plugin) => {
         );
 
         // Log user creation activity
-        console.log('[Auth Controller] Attempting to get activity logger service');
+        // REMOVED FOR PRODUCTION: console.log('[Auth Controller] Attempting to get activity logger service');
         const activityLogger = strapi.service('api::activity-logger.activity-logger');
-        console.log('[Auth Controller] Activity logger service:', activityLogger ? 'FOUND' : 'NOT FOUND');
+        // REMOVED FOR PRODUCTION: console.log('[Auth Controller] Activity logger service:', activityLogger ? 'FOUND' : 'NOT FOUND');
         if (activityLogger) {
-          console.log('[Auth Controller] Calling logActivity for user_created');
+          // REMOVED FOR PRODUCTION: console.log('[Auth Controller] Calling logActivity for user_created');
           await activityLogger.logActivity(userId, 'user_created', {
             username: updatedUser.username,
             email: updatedUser.email

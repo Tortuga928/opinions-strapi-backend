@@ -1,0 +1,44 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dolphinBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#5dade2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3498db;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="dolphinBelly" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#ecf0f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d5dbde;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#e3f2fd"/>
+
+  <!-- Water waves -->
+  <path d="M 0 140 Q 50 135 100 140 Q 150 145 200 140 L 200 200 L 0 200 Z" fill="#b3e5fc" opacity="0.5"/>
+
+  <!-- Tail -->
+  <path d="M 140 130 Q 160 125 170 115 Q 175 110 170 105 Q 165 100 155 105" fill="url(#dolphinBlue)"/>
+  <path d="M 140 130 Q 160 135 170 145 Q 175 150 170 155 Q 165 160 155 155" fill="url(#dolphinBlue)"/>
+
+  <!-- Body -->
+  <ellipse cx="100" cy="100" rx="65" ry="45" fill="url(#dolphinBlue)" transform="rotate(-15 100 100)"/>
+
+  <!-- Belly -->
+  <ellipse cx="95" cy="110" rx="45" ry="30" fill="url(#dolphinBelly)" transform="rotate(-15 95 110)"/>
+
+  <!-- Dorsal fin -->
+  <path d="M 110 75 Q 115 60 112 50 Q 108 55 105 75 Z" fill="url(#dolphinBlue)"/>
+
+  <!-- Rostrum (beak) -->
+  <ellipse cx="50" cy="90" rx="20" ry="12" fill="url(#dolphinBlue)" transform="rotate(-15 50 90)"/>
+
+  <!-- Eye -->
+  <circle cx="75" cy="85" r="5" fill="#2a2a2a"/>
+  <circle cx="76" cy="83" r="2" fill="white"/>
+
+  <!-- Smile -->
+  <path d="M 55 95 Q 65 100 75 98" stroke="#2a2a2a" stroke-width="1.5" fill="none"/>
+
+  <!-- Flipper -->
+  <ellipse cx="85" cy="115" rx="15" ry="25" fill="url(#dolphinBlue)" transform="rotate(35 85 115)"/>
+</svg>

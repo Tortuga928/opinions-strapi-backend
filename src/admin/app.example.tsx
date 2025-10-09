@@ -32,6 +32,6 @@ export default {
     ],
   },
   bootstrap(app: StrapiApp) {
-    console.log(app);
+    // REMOVED FOR PRODUCTION: console.log(app);
   },
 };

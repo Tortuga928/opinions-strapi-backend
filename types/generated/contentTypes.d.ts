@@ -517,7 +517,7 @@ export interface ApiPermissionProfilePermissionProfile
   extends Struct.CollectionTypeSchema {
   collectionName: 'permission_profiles';
   info: {
-    description: 'User permission profiles for access control';
+    description: 'User permission groups';
     displayName: 'Permission Profile';
     pluralName: 'permission-profiles';
     singularName: 'permission-profile';
@@ -719,6 +719,9 @@ export interface ApiUserActivityLogUserActivityLog
         'permission_profile_created',
         'permission_profile_updated',
         'permission_profile_deleted',
+        'email_changed',
+        'username_changed',
+        'avatar_changed',
       ]
     > &
       Schema.Attribute.Required;
@@ -1260,11 +1263,11 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'Active'>;
     adminNotes: Schema.Attribute.Text & Schema.Attribute.Private;
-    avatarFile: Schema.Attribute.Media<'images'>;
-    avatarUrl: Schema.Attribute.String &
+    avatarId: Schema.Attribute.String &
       Schema.Attribute.SetMinMaxLength<{
-        maxLength: 500;
-      }>;
+        maxLength: 50;
+      }> &
+      Schema.Attribute.DefaultTo<'turtle'>;
     bio: Schema.Attribute.Text &
       Schema.Attribute.SetMinMaxLength<{
         maxLength: 500;
@@ -1284,6 +1287,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    emailVerificationToken: Schema.Attribute.String & Schema.Attribute.Private;
     emailVerified: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     forcePasswordReset: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
@@ -1300,6 +1304,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    pendingEmail: Schema.Attribute.Email & Schema.Attribute.Private;
     permissionProfiles: Schema.Attribute.Relation<
       'manyToMany',
       'api::permission-profile.permission-profile'
