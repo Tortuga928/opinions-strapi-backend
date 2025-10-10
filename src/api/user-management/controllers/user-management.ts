@@ -302,7 +302,9 @@ export default {
     const { method, newPassword } = ctx.request.body;
 
     try {
-      const user = await strapi.entityService.findOne('plugin::users-permissions.user', id);
+      // Convert ID to number for Strapi 5 entity service
+      const userId = parseInt(id, 10);
+      const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
 
       if (!user) {
         return ctx.notFound('User not found');
@@ -317,7 +319,7 @@ export default {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         await strapi.query('plugin::users-permissions.user').update({
-          where: { id },
+          where: { id: userId },
           data: {
             password: hashedPassword,
             forcePasswordReset: true
@@ -327,7 +329,7 @@ export default {
         // Log activity
         const activityLogger = strapi.service('api::activity-logger.activity-logger');
         if (activityLogger) {
-          await activityLogger.logActivity(id, 'password_change', {
+          await activityLogger.logActivity(userId, 'password_change', {
             changedBy: currentUser.username,
             method: 'admin_direct'
           }, ctx);
@@ -338,7 +340,7 @@ export default {
         // Trigger password reset email
         // This would use Strapi's built-in forgot-password flow
         // For now, just set forcePasswordReset flag
-        await strapi.entityService.update('plugin::users-permissions.user', id, {
+        await strapi.entityService.update('plugin::users-permissions.user', userId, {
           data: { forcePasswordReset: true }
         });
 
