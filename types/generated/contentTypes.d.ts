@@ -1287,6 +1287,8 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    emailVerificationExpires: Schema.Attribute.DateTime &
+      Schema.Attribute.Private;
     emailVerificationToken: Schema.Attribute.String & Schema.Attribute.Private;
     emailVerified: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     forcePasswordReset: Schema.Attribute.Boolean &
@@ -1299,6 +1301,10 @@ export interface PluginUsersPermissionsUser
     > &
       Schema.Attribute.Private;
     loginCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    oneTimeVerificationExpires: Schema.Attribute.DateTime &
+      Schema.Attribute.Private;
+    oneTimeVerificationToken: Schema.Attribute.String &
+      Schema.Attribute.Private;
     password: Schema.Attribute.Password &
       Schema.Attribute.Private &
       Schema.Attribute.SetMinMaxLength<{
@@ -1311,6 +1317,7 @@ export interface PluginUsersPermissionsUser
     >;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
+    resetPasswordExpires: Schema.Attribute.DateTime & Schema.Attribute.Private;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;
     role: Schema.Attribute.Relation<
       'manyToOne',

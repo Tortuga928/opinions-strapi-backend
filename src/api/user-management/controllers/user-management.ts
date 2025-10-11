@@ -4,6 +4,7 @@
  */
 
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 /**
  * Helper function to validate JWT token and populate ctx.state.user
@@ -458,6 +459,21 @@ export default {
 
       // Handle email change (requires verification)
       if (email !== undefined && email !== currentUser.email) {
+        // Require password confirmation for email change
+        if (!currentPassword) {
+          return ctx.badRequest('Password confirmation required to change email');
+        }
+
+        // Verify password
+        const validPassword = await strapi.plugins['users-permissions'].services.user.validatePassword(
+          currentPassword,
+          currentUser.password
+        );
+
+        if (!validPassword) {
+          return ctx.badRequest('Invalid password');
+        }
+
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
@@ -473,23 +489,44 @@ export default {
           return ctx.badRequest('Email already in use');
         }
 
-        // Generate email verification token
-        const crypto = require('crypto');
-        const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+        // Get email verification service
+        const emailVerificationService = strapi.service('api::email-verification.email-verification');
+        if (!emailVerificationService) {
+          strapi.log.error('Email verification service not found');
+          return ctx.internalServerError('Email verification service unavailable');
+        }
+
+        // Generate email verification token and expiration
+        const { token, expires } = emailVerificationService.generateVerificationToken();
 
         const oldEmail = currentUser.email;
         updateData.pendingEmail = email;
-        updateData.emailVerificationToken = emailVerificationToken;
+        updateData.emailVerificationToken = token;
+        updateData.emailVerificationExpires = expires;
+        updateData.emailVerified = false;
 
-        // TODO: Send verification email (Phase 3)
-        // For now, just log the activity
-        if (activityLogger) {
-          await activityLogger.logActivity(currentUser.id, 'email_changed', {
-            oldEmail,
-            newEmail: email,
-            status: 'pending_verification',
-            selfUpdate: true
-          }, ctx);
+        // Send verification email
+        try {
+          const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3003';
+          await emailVerificationService.sendVerificationEmail({
+            email: email,
+            username: currentUser.username,
+            token,
+            baseUrl
+          });
+
+          // Log email change activity
+          if (activityLogger) {
+            await activityLogger.logActivity(currentUser.id, 'email_changed', {
+              oldEmail,
+              newEmail: email,
+              status: 'pending_verification',
+              selfUpdate: true
+            }, ctx);
+          }
+        } catch (error) {
+          strapi.log.error('Error sending verification email:', error);
+          return ctx.internalServerError('Failed to send verification email. Please try again.');
         }
       }
 
@@ -700,6 +737,472 @@ export default {
     } catch (error) {
       strapi.log.error('Error fetching account statistics:', error);
       return ctx.internalServerError('Failed to fetch account statistics');
+    }
+  },
+
+  /**
+   * Request email verification (resend verification email)
+   * POST /api/user-management/request-email-verification
+   * Sends a new verification email to the user's pending email address
+   */
+  async requestEmailVerification(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser) {
+      return ctx.unauthorized('You must be logged in');
+    }
+
+    // Check account status
+    if (currentUser.accountStatus !== 'Active') {
+      return ctx.forbidden('Only active users can request email verification');
+    }
+
+    try {
+      // Determine which email to verify:
+      // - If pendingEmail exists, verify the new email (email change flow)
+      // - If no pendingEmail, verify the current email (initial registration flow)
+      const emailToVerify = currentUser.pendingEmail || currentUser.email;
+
+      if (!emailToVerify) {
+        return ctx.badRequest('No email address found to verify');
+      }
+
+      // Check if user already verified (both current email AND no pending changes)
+      if (currentUser.emailVerified && !currentUser.pendingEmail) {
+        return ctx.badRequest('Email is already verified');
+      }
+
+      // Get email verification service
+      const emailVerificationService = strapi.service('api::email-verification.email-verification');
+      if (!emailVerificationService) {
+        strapi.log.error('Email verification service not found');
+        return ctx.internalServerError('Email verification service unavailable');
+      }
+
+      // Generate new verification token
+      const { token, expires } = emailVerificationService.generateVerificationToken();
+
+      // Update user with new token
+      const updateData: any = {
+        emailVerificationToken: token,
+        emailVerificationExpires: expires,
+        emailVerified: false
+      };
+
+      // If no pendingEmail exists (initial registration), set it to current email
+      // This ensures the verifyEmail function can process it correctly
+      if (!currentUser.pendingEmail) {
+        updateData.pendingEmail = currentUser.email;
+      }
+
+      await strapi.entityService.update('plugin::users-permissions.user', currentUser.id, {
+        data: updateData
+      });
+
+      // Send verification email
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3003';
+      await emailVerificationService.sendVerificationEmail({
+        email: emailToVerify,
+        username: currentUser.username,
+        token,
+        baseUrl
+      });
+
+      // Log activity (use email_changed since email_verification_requested not in schema)
+      const activityLogger = strapi.service('api::activity-logger.activity-logger');
+      if (activityLogger) {
+        await activityLogger.logActivity(currentUser.id, 'email_changed', {
+          email: emailToVerify,
+          action: 'verification_requested'
+        }, ctx);
+      }
+
+      return {
+        message: 'Verification email sent successfully'
+      };
+    } catch (error) {
+      strapi.log.error('Error requesting email verification:', error);
+      return ctx.internalServerError('Failed to send verification email');
+    }
+  },
+
+  /**
+   * Verify email address via token
+   * GET /api/user-management/verify-email/:token
+   * Verifies the user's email using the token from the email link
+   * Creates a one-time session token and redirects to frontend
+   */
+  async verifyEmail(ctx) {
+    const { token } = ctx.params;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3003';
+
+    if (!token) {
+      return ctx.redirect(`${frontendUrl}?verification=error&message=Token+missing`);
+    }
+
+    try {
+      // Find user by verification token
+      const user = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { emailVerificationToken: token }
+      });
+
+      if (!user) {
+        return ctx.redirect(`${frontendUrl}?verification=error&message=Invalid+or+expired+token`);
+      }
+
+      // Get email verification service
+      const emailVerificationService = strapi.service('api::email-verification.email-verification');
+      if (!emailVerificationService) {
+        strapi.log.error('Email verification service not found');
+        return ctx.redirect(`${frontendUrl}?verification=error&message=Service+unavailable`);
+      }
+
+      // Check if token is expired
+      if (!emailVerificationService.isTokenValid(user.emailVerificationToken, user.emailVerificationExpires)) {
+        return ctx.redirect(`${frontendUrl}?verification=error&message=Token+expired`);
+      }
+
+      // Check if user has a pending email
+      if (!user.pendingEmail) {
+        return ctx.redirect(`${frontendUrl}?verification=error&message=No+pending+email+change`);
+      }
+
+      const verifiedEmail = user.pendingEmail;
+
+      strapi.log.info(`[VERIFY EMAIL DEBUG] Verifying email for user ${user.id} (${user.username})`);
+      strapi.log.info(`[VERIFY EMAIL DEBUG] Current email: ${user.email}, Pending email: ${user.pendingEmail}`);
+      strapi.log.info(`[VERIFY EMAIL DEBUG] About to set: email=${verifiedEmail}, emailVerified=true, confirmed=true`);
+
+      // Update user: move pendingEmail to email, mark as verified, clear email verification tokens
+      await strapi.entityService.update('plugin::users-permissions.user', user.id, {
+        data: {
+          email: verifiedEmail,
+          pendingEmail: null,
+          emailVerified: true,
+          confirmed: true,  // Set Strapi's built-in confirmed field as well
+          emailVerificationToken: null,
+          emailVerificationExpires: null
+        }
+      });
+
+      // Verify the update was successful
+      const verifiedUser = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { id: user.id },
+        select: ['id', 'username', 'email', 'emailVerified', 'confirmed', 'pendingEmail']
+      });
+      strapi.log.info(`[VERIFY EMAIL DEBUG] After update: ${JSON.stringify(verifiedUser)}`);
+
+      // Generate one-time session token for frontend to exchange for user data
+      const oneTimeToken = crypto.randomBytes(32).toString('hex');
+      const oneTimeExpires = new Date();
+      oneTimeExpires.setMinutes(oneTimeExpires.getMinutes() + 5); // 5 minute expiration
+
+      // Store one-time token in user record
+      await strapi.entityService.update('plugin::users-permissions.user', user.id, {
+        data: {
+          oneTimeVerificationToken: oneTimeToken,
+          oneTimeVerificationExpires: oneTimeExpires
+        }
+      });
+
+      // Log activity (use email_changed since email_verified not in schema)
+      const activityLogger = strapi.service('api::activity-logger.activity-logger');
+      if (activityLogger) {
+        await activityLogger.logActivity(user.id, 'email_changed', {
+          email: verifiedEmail,
+          action: 'verification_completed',
+          verifiedAt: new Date()
+        }, ctx);
+      }
+
+      strapi.log.info(`Email verified for user ${user.id} (${user.username}): ${verifiedEmail}`);
+
+      // Redirect to frontend with one-time token
+      return ctx.redirect(`${frontendUrl}?verifyToken=${oneTimeToken}`);
+    } catch (error) {
+      strapi.log.error('Error verifying email:', error);
+      return ctx.redirect(`${frontendUrl}?verification=error&message=Verification+failed`);
+    }
+  },
+
+  /**
+   * Exchange one-time verification token for updated user data + JWT token
+   * POST /api/user-management/exchange-verify-token
+   * Body: { verifyToken: string }
+   * Returns: Updated user object with new email AND JWT token for automatic login
+   */
+  async exchangeVerifyToken(ctx) {
+    const { verifyToken } = ctx.request.body;
+
+    if (!verifyToken) {
+      return ctx.badRequest('Verification token required');
+    }
+
+    try {
+      // Find user by one-time token
+      const user = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { oneTimeVerificationToken: verifyToken }
+      });
+
+      if (!user) {
+        return ctx.unauthorized('Invalid or expired verification token');
+      }
+
+      // Check if token is expired
+      const now = new Date();
+      const expires = new Date(user.oneTimeVerificationExpires);
+      if (now >= expires) {
+        return ctx.unauthorized('Verification token expired');
+      }
+
+      // Clear one-time token (can only be used once)
+      await strapi.entityService.update('plugin::users-permissions.user', user.id, {
+        data: {
+          oneTimeVerificationToken: null,
+          oneTimeVerificationExpires: null
+        }
+      });
+
+      // Get fresh user data with all fields
+      const updatedUser = await strapi.entityService.findOne('plugin::users-permissions.user', user.id, {
+        populate: ['permissionProfiles']
+      });
+
+      // Generate JWT token for automatic login
+      const jwtService = strapi.plugin('users-permissions').service('jwt');
+      const jwt = jwtService.issue({ id: updatedUser.id });
+
+      // Return user data (without password) AND JWT token
+      const { password, ...userWithoutPassword } = updatedUser;
+
+      strapi.log.info(`Issued JWT token for user ${updatedUser.id} (${updatedUser.username}) after email verification`);
+
+      return {
+        data: {
+          user: userWithoutPassword,
+          jwt: jwt,
+          message: 'Email verified successfully'
+        }
+      };
+    } catch (error) {
+      strapi.log.error('Error exchanging verify token:', error);
+      return ctx.internalServerError('Failed to exchange verification token');
+    }
+  },
+
+  /**
+   * Request password reset (send clickable link via email)
+   * POST /api/user-management/request-password-reset
+   * Body: { email: string }
+   * Public endpoint - no authentication required
+   */
+  async requestPasswordReset(ctx) {
+    const { email } = ctx.request.body;
+
+    if (!email) {
+      return ctx.badRequest('Email address is required');
+    }
+
+    try {
+      // Find user by email
+      const user = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { email }
+      });
+
+      // For security, always return success even if user doesn't exist
+      // This prevents email enumeration attacks
+      if (!user) {
+        strapi.log.info(`Password reset requested for non-existent email: ${email}`);
+        return {
+          message: 'If an account with that email exists, a password reset link has been sent.'
+        };
+      }
+
+      // Check if account is active
+      if (user.accountStatus !== 'Active') {
+        strapi.log.warn(`Password reset requested for inactive account: ${user.username}`);
+        return {
+          message: 'If an account with that email exists, a password reset link has been sent.'
+        };
+      }
+
+      // Get email verification service (reuse for token generation)
+      const emailVerificationService = strapi.service('api::email-verification.email-verification');
+      if (!emailVerificationService) {
+        strapi.log.error('Email verification service not found');
+        return ctx.internalServerError('Service unavailable');
+      }
+
+      // Generate password reset token (24 hour expiration)
+      const { token, expires } = emailVerificationService.generateVerificationToken();
+
+      // Store token and expiration in user record
+      await strapi.entityService.update('plugin::users-permissions.user', user.id, {
+        data: {
+          resetPasswordToken: token,
+          resetPasswordExpires: expires
+        }
+      });
+
+      // Send password reset email
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3003';
+      await emailVerificationService.sendPasswordResetEmail({
+        email: user.email,
+        username: user.username,
+        token,
+        baseUrl
+      });
+
+      // Log activity
+      const activityLogger = strapi.service('api::activity-logger.activity-logger');
+      if (activityLogger) {
+        await activityLogger.logActivity(user.id, 'password_change', {
+          action: 'reset_requested',
+          timestamp: new Date()
+        }, ctx);
+      }
+
+      strapi.log.info(`Password reset email sent to user ${user.id} (${user.username})`);
+
+      return {
+        message: 'If an account with that email exists, a password reset link has been sent.'
+      };
+    } catch (error) {
+      strapi.log.error('Error requesting password reset:', error);
+      return ctx.internalServerError('Failed to process password reset request');
+    }
+  },
+
+  /**
+   * Verify password reset token and redirect to frontend
+   * GET /api/user-management/reset-password/:token
+   * Verifies the password reset token and redirects to frontend with one-time token
+   * Public endpoint - no authentication required
+   */
+  async verifyPasswordResetToken(ctx) {
+    const { token } = ctx.params;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3003';
+
+    if (!token) {
+      return ctx.redirect(`${frontendUrl}/reset-password?status=error&message=Token+missing`);
+    }
+
+    try {
+      // Find user by reset password token
+      const user = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { resetPasswordToken: token }
+      });
+
+      if (!user) {
+        return ctx.redirect(`${frontendUrl}/reset-password?status=error&message=Invalid+or+expired+token`);
+      }
+
+      // Get email verification service for token validation
+      const emailVerificationService = strapi.service('api::email-verification.email-verification');
+      if (!emailVerificationService) {
+        strapi.log.error('Email verification service not found');
+        return ctx.redirect(`${frontendUrl}/reset-password?status=error&message=Service+unavailable`);
+      }
+
+      // Check if token is expired
+      if (!emailVerificationService.isTokenValid(user.resetPasswordToken, user.resetPasswordExpires)) {
+        return ctx.redirect(`${frontendUrl}/reset-password?status=error&message=Token+expired`);
+      }
+
+      // Generate one-time token for password reset form
+      const oneTimeToken = crypto.randomBytes(32).toString('hex');
+      const oneTimeExpires = new Date();
+      oneTimeExpires.setMinutes(oneTimeExpires.getMinutes() + 15); // 15 minute expiration for password reset form
+
+      // Store one-time token in user record
+      await strapi.entityService.update('plugin::users-permissions.user', user.id, {
+        data: {
+          oneTimeVerificationToken: oneTimeToken,
+          oneTimeVerificationExpires: oneTimeExpires
+        }
+      });
+
+      strapi.log.info(`Password reset token verified for user ${user.id} (${user.username})`);
+
+      // Redirect to frontend password reset form with one-time token
+      return ctx.redirect(`${frontendUrl}/reset-password?resetToken=${oneTimeToken}`);
+    } catch (error) {
+      strapi.log.error('Error verifying password reset token:', error);
+      return ctx.redirect(`${frontendUrl}/reset-password?status=error&message=Verification+failed`);
+    }
+  },
+
+  /**
+   * Reset password with one-time token
+   * POST /api/user-management/reset-password-with-token
+   * Body: { resetToken: string, newPassword: string, confirmPassword: string }
+   * Public endpoint - no authentication required
+   */
+  async resetPasswordWithToken(ctx) {
+    const { resetToken, newPassword, confirmPassword } = ctx.request.body;
+
+    if (!resetToken || !newPassword || !confirmPassword) {
+      return ctx.badRequest('Reset token, new password, and confirmation are required');
+    }
+
+    if (newPassword !== confirmPassword) {
+      return ctx.badRequest('Passwords do not match');
+    }
+
+    if (newPassword.length < 6) {
+      return ctx.badRequest('Password must be at least 6 characters long');
+    }
+
+    try {
+      // Find user by one-time token
+      const user = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { oneTimeVerificationToken: resetToken }
+      });
+
+      if (!user) {
+        return ctx.unauthorized('Invalid or expired reset token');
+      }
+
+      // Check if token is expired
+      const now = new Date();
+      const expires = new Date(user.oneTimeVerificationExpires);
+      if (now >= expires) {
+        return ctx.unauthorized('Reset token expired. Please request a new password reset link.');
+      }
+
+      // Hash the new password using bcrypt
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password and clear all reset tokens
+      await strapi.query('plugin::users-permissions.user').update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+          oneTimeVerificationToken: null,
+          oneTimeVerificationExpires: null
+        }
+      });
+
+      // Log activity
+      const activityLogger = strapi.service('api::activity-logger.activity-logger');
+      if (activityLogger) {
+        await activityLogger.logActivity(user.id, 'password_change', {
+          action: 'reset_completed',
+          method: 'email_link',
+          timestamp: new Date()
+        }, ctx);
+      }
+
+      strapi.log.info(`Password reset successfully for user ${user.id} (${user.username})`);
+
+      return {
+        message: 'Password reset successfully. You can now log in with your new password.'
+      };
+    } catch (error) {
+      strapi.log.error('Error resetting password with token:', error);
+      return ctx.internalServerError('Failed to reset password');
     }
   }
 };
