@@ -537,10 +537,32 @@ export default {
         });
 
         // Log general profile update
+        // Exclude fields that have their own specific activity logs:
+        // - avatarId has avatar_changed
+        // - username has username_changed
+        // - emailVerificationToken, pendingEmail are internal email change fields
         if (activityLogger) {
-          const changes = Object.keys(updateData)
-            .filter(key => !['emailVerificationToken', 'pendingEmail'].includes(key))
-            .join(', ');
+          const allKeys = Object.keys(updateData);
+
+          // Best practice: Only log fields that ACTUALLY CHANGED (compare old vs new values)
+          // Filter to only fields that both:
+          // 1. Don't have their own specific activity log
+          // 2. Actually changed in value (different from currentUser value)
+          const actuallyChangedFields = allKeys.filter(key => {
+            // Skip fields with their own activity logs
+            if (['emailVerificationToken', 'pendingEmail', 'avatarId', 'username'].includes(key)) {
+              return false;
+            }
+
+            // Compare old value vs new value
+            const oldValue = currentUser[key];
+            const newValue = updateData[key];
+
+            // Only include if value actually changed
+            return oldValue !== newValue;
+          });
+
+          const changes = actuallyChangedFields.join(', ');
 
           if (changes) {
             await activityLogger.logActivity(currentUser.id, 'profile_update', {
@@ -691,14 +713,32 @@ export default {
 
       const profileCompleteness = Math.round((completedFields / totalFields) * 100);
 
-      // Get total ratings given by user
-      const ratingsCount = await strapi.db.query('api::user-rating.user-rating').count({
-        where: { users_permissions_user: currentUser.id }
+      // Get total unique opinions rated by user (count distinct opinions, not all rating rows)
+      // Users can have multiple rating rows for the same opinion (update history)
+      // We should only count each opinion once
+      const allUserRatings = await strapi.entityService.findMany('api::user-rating.user-rating', {
+        filters: { users_permissions_user: { id: currentUser.id } },
+        populate: ['opinion']
       });
 
-      // Get total activity log entries for user
+      // Get unique opinion IDs
+      const uniqueOpinionIds = new Set();
+      allUserRatings.forEach((rating: any) => {
+        if (rating.opinion && rating.opinion.id) {
+          uniqueOpinionIds.add(rating.opinion.id);
+        }
+      });
+
+      const ratingsCount = uniqueOpinionIds.size;
+
+      // Get total activity log entries for user (excluding rating activities to avoid double counting)
       const activityCount = await strapi.db.query('api::user-activity-log.user-activity-log').count({
-        where: { user: currentUser.id }
+        where: {
+          user: currentUser.id,
+          activityType: {
+            $notIn: ['rating_given', 'rating_updated']
+          }
+        }
       });
 
       // Get login count
@@ -869,10 +909,6 @@ export default {
 
       const verifiedEmail = user.pendingEmail;
 
-      strapi.log.info(`[VERIFY EMAIL DEBUG] Verifying email for user ${user.id} (${user.username})`);
-      strapi.log.info(`[VERIFY EMAIL DEBUG] Current email: ${user.email}, Pending email: ${user.pendingEmail}`);
-      strapi.log.info(`[VERIFY EMAIL DEBUG] About to set: email=${verifiedEmail}, emailVerified=true, confirmed=true`);
-
       // Update user: move pendingEmail to email, mark as verified, clear email verification tokens
       await strapi.entityService.update('plugin::users-permissions.user', user.id, {
         data: {
@@ -884,13 +920,6 @@ export default {
           emailVerificationExpires: null
         }
       });
-
-      // Verify the update was successful
-      const verifiedUser = await strapi.query('plugin::users-permissions.user').findOne({
-        where: { id: user.id },
-        select: ['id', 'username', 'email', 'emailVerified', 'confirmed', 'pendingEmail']
-      });
-      strapi.log.info(`[VERIFY EMAIL DEBUG] After update: ${JSON.stringify(verifiedUser)}`);
 
       // Generate one-time session token for frontend to exchange for user data
       const oneTimeToken = crypto.randomBytes(32).toString('hex');
