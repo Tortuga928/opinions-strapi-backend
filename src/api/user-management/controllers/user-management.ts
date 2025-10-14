@@ -81,13 +81,61 @@ export default {
         ];
       }
 
-      const users = await strapi.entityService.findMany('plugin::users-permissions.user', {
-        filters,
-        populate: ['permissionProfiles'],
-        sort: { createdAt: 'desc' },
-        start: (page - 1) * pageSize,
+      // Use strapi.query() instead of entityService to work around Strapi 5 bug
+      // Bug: Multiple relations to same table fail to populate with entityService
+      // Solution: Fetch users without primaryProfile populate, then manually attach it
+      const users = await strapi.db.query('plugin::users-permissions.user').findMany({
+        where: filters,
+        populate: ['permissionProfiles', 'individualMenuPermissions'],
+        orderBy: { createdAt: 'desc' },
+        offset: (page - 1) * pageSize,
         limit: pageSize
       });
+
+      // WORKAROUND for Strapi 5 Bug #20330: Manually fetch and attach primaryProfile
+      // The populate mechanism is completely broken for primaryProfile relation
+      // Solution: Use direct SQL to fetch primary_profile_id column for each user
+      strapi.log.debug(`Processing ${users.length} users`);
+      for (const user of users) {
+        // Use direct SQL to fetch primary_profile_id from database
+        const sqlResult = await strapi.db.connection.raw(
+          'SELECT primary_profile_id FROM up_users WHERE id = ?',
+          [user.id]
+        );
+
+        // Extract primary_profile_id from SQL result
+        // SQLite returns array of rows, first row is the user
+        const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].primary_profile_id;
+        strapi.log.debug(`User ${user.id} (${user.username}) primary_profile_id from SQL: ${primaryProfileId}`);
+
+        if (primaryProfileId) {
+          try {
+            strapi.log.debug(`Fetching profile ${primaryProfileId}...`);
+            // WORKAROUND: Also use direct SQL to fetch profile name
+            // Strapi entityService returns wrong data for permission profiles
+            const profileSqlResult = await strapi.db.connection.raw(
+              'SELECT id, name, description FROM permission_profiles WHERE id = ?',
+              [primaryProfileId]
+            );
+
+            const primaryProfile = profileSqlResult && profileSqlResult[0] ? {
+              id: profileSqlResult[0].id,
+              name: profileSqlResult[0].name,
+              description: profileSqlResult[0].description
+            } : null;
+
+            strapi.log.debug(`Successfully fetched profile via SQL: ${primaryProfile?.name}`);
+            user.primaryProfile = primaryProfile;
+          } catch (error) {
+            strapi.log.error(`Failed to fetch primaryProfile ${primaryProfileId} for user ${user.id}:`, error);
+            user.primaryProfile = null;
+          }
+        } else {
+          strapi.log.debug(`User ${user.id} has no primary profile ID`);
+          user.primaryProfile = null;
+        }
+      }
+      strapi.log.debug(`Finished processing all users`);
 
       const total = await strapi.query('plugin::users-permissions.user').count({ where: filters });
 
@@ -781,6 +829,44 @@ export default {
   },
 
   /**
+   * GET /api/user-management/menus
+   * Get user's accessible menu permissions
+   * Returns list of menus the user can access (based on profile + individual permissions + super admin status)
+   */
+  async getUserMenus(ctx) {
+    try {
+      const currentUser = await authenticateRequest(ctx);
+
+      if (!currentUser) {
+        return ctx.unauthorized('You must be logged in to view menu permissions');
+      }
+
+      strapi.log.debug(`getUserMenus called for user ${currentUser.id} (${currentUser.username})`);
+      strapi.log.debug(`User isSuperAdmin: ${currentUser.isSuperAdmin}, is_super_admin: ${currentUser.is_super_admin}`);
+
+      // Call permission-checker service to get user's menus
+      const permissionChecker = strapi.service('api::permission-checker.permission-checker');
+      if (!permissionChecker) {
+        strapi.log.error('Permission checker service not found');
+        return ctx.internalServerError('Permission checker service unavailable');
+      }
+
+      const menus = await permissionChecker.getUserMenus(currentUser.id);
+
+      strapi.log.debug(`Retrieved ${menus.length} menus from permission-checker service`);
+      strapi.log.debug(`Menu keys: ${menus.map(m => m.key).join(', ')}`);
+      strapi.log.info(`User ${currentUser.id} (${currentUser.username}) has access to ${menus.length} menus`);
+
+      return {
+        data: menus
+      };
+    } catch (error) {
+      strapi.log.error('Error fetching user menus:', error);
+      return ctx.internalServerError('Failed to fetch menu permissions');
+    }
+  },
+
+  /**
    * Request email verification (resend verification email)
    * POST /api/user-management/request-email-verification
    * Sends a new verification email to the user's pending email address
@@ -1232,6 +1318,131 @@ export default {
     } catch (error) {
       strapi.log.error('Error resetting password with token:', error);
       return ctx.internalServerError('Failed to reset password');
+    }
+  },
+
+  /**
+   * Toggle super admin status (sysadmin only)
+   * POST /api/user-management/users/:id/toggle-super-admin
+   * Body: { isSuperAdmin: boolean }
+   */
+  async toggleSuperAdmin(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+      return ctx.unauthorized('Only sysadmin can toggle super admin status');
+    }
+
+    const { id } = ctx.params;
+    const { isSuperAdmin } = ctx.request.body;
+
+    if (typeof isSuperAdmin !== 'boolean') {
+      return ctx.badRequest('isSuperAdmin must be a boolean');
+    }
+
+    try {
+      // Get target user
+      const targetUser = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { id }
+      });
+
+      if (!targetUser) {
+        return ctx.notFound('User not found');
+      }
+
+      // If removing super admin status, check if this is the last super admin
+      if (!isSuperAdmin && targetUser.isSuperAdmin) {
+        const superAdminCount = await strapi.db.query('plugin::users-permissions.user').count({
+          where: { isSuperAdmin: true }
+        });
+
+        if (superAdminCount <= 1) {
+          return ctx.badRequest('Cannot remove super admin status - at least one super admin must exist');
+        }
+      }
+
+      // Update user
+      await strapi.query('plugin::users-permissions.user').update({
+        where: { id },
+        data: { isSuperAdmin }
+      });
+
+      strapi.log.info(`Super admin status ${isSuperAdmin ? 'granted to' : 'removed from'} user ${targetUser.username} by ${currentUser.username}`);
+
+      // Log activity
+      const activityLogger = strapi.service('api::activity-logger.activity-logger');
+      if (activityLogger) {
+        await activityLogger.logActivity(id, 'account_status_change', {
+          action: isSuperAdmin ? 'super_admin_granted' : 'super_admin_revoked',
+          changedBy: currentUser.username,
+          targetUser: targetUser.username
+        }, ctx);
+      }
+
+      return {
+        data: {
+          message: `Super admin status ${isSuperAdmin ? 'granted' : 'removed'} successfully`,
+          userId: id,
+          username: targetUser.username,
+          isSuperAdmin
+        }
+      };
+    } catch (error) {
+      strapi.log.error('Error toggling super admin status:', error);
+      return ctx.internalServerError('Failed to toggle super admin status');
+    }
+  },
+
+  /**
+   * Check if super admin can be removed (sysadmin only)
+   * GET /api/user-management/users/:id/can-remove-super-admin
+   */
+  async canRemoveSuperAdmin(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+      return ctx.unauthorized('Only sysadmin can check super admin status');
+    }
+
+    const { id } = ctx.params;
+
+    try {
+      // Get target user
+      const targetUser = await strapi.query('plugin::users-permissions.user').findOne({
+        where: { id }
+      });
+
+      if (!targetUser) {
+        return ctx.notFound('User not found');
+      }
+
+      // If user is not a super admin, they can't be removed
+      if (!targetUser.isSuperAdmin) {
+        return {
+          data: {
+            canRemove: false,
+            reason: 'User is not a super admin'
+          }
+        };
+      }
+
+      // Count total super admins
+      const superAdminCount = await strapi.db.query('plugin::users-permissions.user').count({
+        where: { isSuperAdmin: true }
+      });
+
+      const canRemove = superAdminCount > 1;
+
+      return {
+        data: {
+          canRemove,
+          reason: canRemove ? 'Multiple super admins exist' : 'This is the last super admin',
+          totalSuperAdmins: superAdminCount
+        }
+      };
+    } catch (error) {
+      strapi.log.error('Error checking super admin status:', error);
+      return ctx.internalServerError('Failed to check super admin status');
     }
   }
 };
