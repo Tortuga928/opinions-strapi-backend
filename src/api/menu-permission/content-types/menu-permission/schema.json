@@ -1,0 +1,69 @@
+{
+  "kind": "collectionType",
+  "collectionName": "menu_permissions",
+  "info": {
+    "singularName": "menu-permission",
+    "pluralName": "menu-permissions",
+    "displayName": "Menu Permission",
+    "description": "Menu items that can be granted to users via permission profiles"
+  },
+  "options": {
+    "draftAndPublish": false,
+    "comment": ""
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "key": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "maxLength": 100,
+      "description": "Technical identifier (e.g., 'opinions', 'users', 'analytics')"
+    },
+    "displayName": {
+      "type": "string",
+      "required": true,
+      "maxLength": 100,
+      "description": "User-facing menu label (e.g., 'Opinions', 'User Management')"
+    },
+    "description": {
+      "type": "text",
+      "description": "Description of what this menu item allows users to access"
+    },
+    "menuIcon": {
+      "type": "string",
+      "maxLength": 10,
+      "description": "Emoji or icon for the menu (e.g., '💭', '👥')"
+    },
+    "isSystemMenu": {
+      "type": "boolean",
+      "default": false,
+      "required": true,
+      "description": "If true, this menu cannot be deleted (system-critical menus)"
+    },
+    "sortOrder": {
+      "type": "integer",
+      "default": 0,
+      "description": "Order in which menu items should appear (lower numbers first)"
+    },
+    "menuCategory": {
+      "type": "enumeration",
+      "enum": ["regular", "admin"],
+      "default": "regular",
+      "required": true,
+      "description": "Category: 'regular' for normal users, 'admin' for administrative menus"
+    },
+    "permission_profiles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::permission-profile.permission-profile",
+      "mappedBy": "menuPermissions"
+    },
+    "users": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "plugin::users-permissions.user",
+      "mappedBy": "individualMenuPermissions"
+    }
+  }
+}
