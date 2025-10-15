@@ -66,8 +66,11 @@ export default {
          ORDER BY sort_order ASC`
       );
 
+      // Handle different result formats: PostgreSQL returns {rows: [...]} while SQLite returns [...]
+      const rows = sqlResult.rows || sqlResult;
+
       // Transform SQL results to match Strapi format (camelCase field names)
-      const menus = sqlResult.map((row: any) => ({
+      const menus = rows.map((row: any) => ({
         id: row.id,
         documentId: row.document_id,
         key: row.key,
