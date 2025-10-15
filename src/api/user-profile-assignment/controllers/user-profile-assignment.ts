@@ -271,17 +271,33 @@ export default {
         }
       }
 
-      // Step 3: Set new primary profile using direct SQL
-      // WORKAROUND for Strapi 5 Bug #20330: Multiple relations to same table fail to populate
-      // Solution: Use direct SQL to update the primaryProfile field instead of Strapi ORM
-      // The clear-then-set pattern doesn't work for UPDATING existing values in Strapi 5
-      // Direct SQL bypasses Strapi's broken relation handling
-      await strapi.db.connection.raw(
-        'UPDATE up_users SET primary_profile_id = ? WHERE id = ?',
-        [profileId, userId]
+      // Step 3: Set new primary profile using join table
+      // CRITICAL FIX: Production uses join table instead of direct column
+      // Check if relation already exists in join table
+      const existingPrimaryResult = await strapi.db.connection.raw(
+        'SELECT * FROM up_users_primary_profile_lnk WHERE user_id = ?',
+        [userId]
       );
 
-      strapi.log.info(`Primary profile set to ${profile.name} for user ${user.username} by ${currentUser.username} (using direct SQL workaround)`);
+      const existingPrimary = existingPrimaryResult.rows || existingPrimaryResult || [];
+
+      if (existingPrimary.length > 0) {
+        // Update existing relation
+        await strapi.db.connection.raw(
+          'UPDATE up_users_primary_profile_lnk SET permission_profile_id = ? WHERE user_id = ?',
+          [profileId, userId]
+        );
+        strapi.log.info(`[PRIMARY PROFILE] Updated existing primary profile to ${profile.name} for user ${user.username}`);
+      } else {
+        // Insert new relation
+        await strapi.db.connection.raw(
+          'INSERT INTO up_users_primary_profile_lnk (user_id, permission_profile_id) VALUES (?, ?)',
+          [userId, profileId]
+        );
+        strapi.log.info(`[PRIMARY PROFILE] Inserted new primary profile ${profile.name} for user ${user.username}`);
+      }
+
+      strapi.log.info(`Primary profile set to ${profile.name} for user ${user.username} by ${currentUser.username} (using join table)`);
 
       return {
         data: {
