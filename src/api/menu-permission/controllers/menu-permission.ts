@@ -46,13 +46,13 @@ export default {
   /**
    * GET /api/menu-permissions
    * List all menu permissions
-   * Access: Sysadmin only
+   * Access: Authenticated users only (frontend restricts page access to sysadmin)
    */
   async find(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
-      return ctx.unauthorized('Only sysadmin can list menu permissions');
+    if (!currentUser) {
+      return ctx.unauthorized('You must be logged in to view menu permissions');
     }
 
     try {
