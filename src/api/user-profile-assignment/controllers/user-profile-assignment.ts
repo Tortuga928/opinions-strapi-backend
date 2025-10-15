@@ -240,12 +240,15 @@ export default {
       // When changing primary profile, user should get ONLY the permissions from the new profile
 
       // Step 1: Query for existing individual menu permissions
-      const existingIndividualMenus = await strapi.db.connection.raw(
+      const existingIndividualMenusResult = await strapi.db.connection.raw(
         'SELECT menu_permission_id FROM up_users_individual_menu_permissions_lnk WHERE user_id = ?',
         [userId]
       );
 
-      const individualMenuCount = existingIndividualMenus?.length || 0;
+      // CRITICAL FIX: Handle different result formats between PostgreSQL and SQLite
+      // PostgreSQL returns {rows: [...]} while SQLite returns [...]
+      const existingIndividualMenus = existingIndividualMenusResult.rows || existingIndividualMenusResult || [];
+      const individualMenuCount = existingIndividualMenus.length;
 
       // Step 2: Delete ALL individual menu permissions via direct SQL
       if (individualMenuCount > 0) {
@@ -332,12 +335,14 @@ export default {
 
       // Check if relation already exists by querying join table directly
       // Strapi 5 naming: {collectionName}_{relationField}_lnk
-      const existingRelation = await strapi.db.connection.raw(
+      const existingRelationResult = await strapi.db.connection.raw(
         'SELECT * FROM up_users_individual_menu_permissions_lnk WHERE user_id = ? AND menu_permission_id = ?',
         [userId, menuId]
       );
 
-      const hasRelation = existingRelation && existingRelation.length > 0;
+      // CRITICAL FIX: Handle different result formats between PostgreSQL and SQLite
+      const existingRelation = existingRelationResult.rows || existingRelationResult || [];
+      const hasRelation = existingRelation.length > 0;
 
       // Add new menu if not already assigned
       if (!hasRelation) {
@@ -408,12 +413,14 @@ export default {
 
       // Check if relation exists by querying join table directly
       // Strapi 5 naming: {collectionName}_{relationField}_lnk
-      const existingRelation = await strapi.db.connection.raw(
+      const existingRelationResult = await strapi.db.connection.raw(
         'SELECT * FROM up_users_individual_menu_permissions_lnk WHERE user_id = ? AND menu_permission_id = ?',
         [userId, menuId]
       );
 
-      const hasRelation = existingRelation && existingRelation.length > 0;
+      // CRITICAL FIX: Handle different result formats between PostgreSQL and SQLite
+      const existingRelation = existingRelationResult.rows || existingRelationResult || [];
+      const hasRelation = existingRelation.length > 0;
 
       // Check if menu is assigned
       if (!hasRelation) {
