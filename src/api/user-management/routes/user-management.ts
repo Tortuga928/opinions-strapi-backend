@@ -56,26 +56,6 @@ export default {
         middlewares: [],
       }
     },
-    {
-      method: 'POST',
-      path: '/user-management/users/:id/toggle-super-admin',
-      handler: 'user-management.toggleSuperAdmin',
-      config: {
-        auth: false,
-        policies: [],
-        middlewares: [],
-      }
-    },
-    {
-      method: 'GET',
-      path: '/user-management/users/:id/can-remove-super-admin',
-      handler: 'user-management.canRemoveSuperAdmin',
-      config: {
-        auth: false,
-        policies: [],
-        middlewares: [],
-      }
-    },
 
     // User Profile Routes (all authenticated users)
     {
