@@ -57,10 +57,11 @@ export default {
 
     try {
       const menus = await strapi.entityService.findMany('api::menu-permission.menu-permission', {
-        sort: { sortOrder: 'asc' },
+        sort: { sort_order: 'asc' },
         populate: ['permission_profiles', 'users']
       });
 
+      strapi.log.info(`[menu-permission.find] Returning ${menus.length} menu permissions`);
       return { data: menus };
     } catch (error) {
       strapi.log.error('Error listing menu permissions:', error);
