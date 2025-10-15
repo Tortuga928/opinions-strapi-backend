@@ -56,12 +56,33 @@ export default {
     }
 
     try {
-      const menus = await strapi.entityService.findMany('api::menu-permission.menu-permission', {
-        sort: 'sortOrder:asc' as any,
-        populate: ['permission_profiles', 'users']
-      });
+      // WORKAROUND for Strapi 5 Bug #20330: Use direct SQL instead of entityService
+      // entityService.findMany() can return wrong data for menu permissions
+      // This is the same bug documented in PROFILE_BUG_TRACKING_LOG.md
+      const sqlResult = await strapi.db.connection.raw(
+        `SELECT id, document_id, key, display_name, description, menu_icon,
+                is_system_menu, sort_order, menu_category, created_at, updated_at, published_at
+         FROM menu_permissions
+         ORDER BY sort_order ASC`
+      );
 
-      strapi.log.info(`[menu-permission.find] Returning ${menus.length} menu permissions`);
+      // Transform SQL results to match Strapi format (camelCase field names)
+      const menus = sqlResult.map((row: any) => ({
+        id: row.id,
+        documentId: row.document_id,
+        key: row.key,
+        displayName: row.display_name,
+        description: row.description,
+        menuIcon: row.menu_icon,
+        isSystemMenu: row.is_system_menu,
+        sortOrder: row.sort_order,
+        menuCategory: row.menu_category,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        publishedAt: row.published_at
+      }));
+
+      strapi.log.info(`[menu-permission.find] Returning ${menus.length} menu permissions via direct SQL`);
       return { data: menus };
     } catch (error) {
       strapi.log.error('Error listing menu permissions:', error);
