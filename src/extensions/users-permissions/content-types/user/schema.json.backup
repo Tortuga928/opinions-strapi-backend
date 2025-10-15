@@ -151,23 +151,6 @@
       "configurable": false,
       "private": true
     },
-    "primaryProfile": {
-      "type": "relation",
-      "relation": "manyToOne",
-      "target": "api::permission-profile.permission-profile",
-      "inversedBy": "primaryUsers"
-    },
-    "individualMenuPermissions": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::menu-permission.menu-permission",
-      "inversedBy": "users"
-    },
-    "isSuperAdmin": {
-      "type": "boolean",
-      "default": false,
-      "required": true
-    },
     "permissionProfiles": {
       "type": "relation",
       "relation": "manyToMany",

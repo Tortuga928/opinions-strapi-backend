@@ -8,134 +8,60 @@ export default {
    * This gives you an opportunity to extend code.
    */
   register({ strapi }) {
-    // REMOVED FOR PRODUCTION: console.log('[index.ts register] Extending users-permissions plugin');
+    strapi.log.info('[index.ts register] REGISTER FUNCTION CALLED - Installing auth login override');
 
-    // Extend users-permissions plugin auth controller
-    const originalRegister = strapi.plugins['users-permissions'].controllers.auth.register;
+    // WORKAROUND for Strapi 5.0.3+ bug: Override auth controllers in register()
+    // This MUST be in register() not bootstrap() because routes are bound before bootstrap runs
     const originalLogin = strapi.plugins['users-permissions'].controllers.auth.login;
-    const originalCallback = strapi.plugins['users-permissions'].controllers.auth.callback;
 
-    // Override register to add activity logging and include custom fields
-    strapi.plugins['users-permissions'].controllers.auth.register = async (ctx) => {
-      // REMOVED FOR PRODUCTION: console.log('[Auth Extension] register() called');
-      await originalRegister(ctx);
-
-      if (ctx.response.body && ctx.response.body.user) {
-        const userId = ctx.response.body.user.id;
-
-        // Log user creation activity
-        const activityLogger = strapi.service('api::activity-logger.activity-logger');
-        if (activityLogger) {
-          // REMOVED FOR PRODUCTION: console.log('[Auth Extension] Logging user_created for user', userId);
-          await activityLogger.logActivity(userId, 'user_created', {
-            username: ctx.response.body.user.username,
-            email: ctx.response.body.user.email
-          }, ctx);
-        }
-
-        // Fetch full user object with custom fields to include in response
-        const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
-          where: { id: userId }
-        });
-
-        // Add custom fields to response (userRole, accountStatus, etc.)
-        if (fullUser) {
-          ctx.response.body.user = {
-            ...ctx.response.body.user,
-            userRole: fullUser.userRole,
-            accountStatus: fullUser.accountStatus,
-            displayName: fullUser.displayName,
-            bio: fullUser.bio,
-            avatarUrl: fullUser.avatarUrl
-          };
-        }
-      }
-    };
-
-    // Override login to track login activity and include custom user fields
     strapi.plugins['users-permissions'].controllers.auth.login = async (ctx) => {
-      // REMOVED FOR PRODUCTION: console.log('[Auth Extension] login() called');
+      strapi.log.info('[Auth Login REGISTER] Login override called');
       await originalLogin(ctx);
 
       if (ctx.response.body && ctx.response.body.user) {
-        await handleSuccessfulLogin(ctx.response.body.user.id, ctx, strapi);
+        const userId = ctx.response.body.user.id;
+        strapi.log.info(`[Auth Login REGISTER] Processing user ${userId}`);
 
-        // Fetch full user object with custom fields to include in response
-        const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
-          where: { id: ctx.response.body.user.id }
-        });
+        // CRITICAL FIX: Populate primaryProfile relation for frontend
+        // WORKAROUND for Strapi 5 Bug #20330: Use direct SQL to fetch primary_profile_id
+        try {
+          // Use direct SQL to fetch primary_profile_id
+          const sqlResult = await strapi.db.connection.raw(
+            'SELECT primary_profile_id FROM up_users WHERE id = ?',
+            [userId]
+          );
 
-        // Add custom fields to response (userRole, accountStatus, etc.)
-        if (fullUser) {
-          ctx.response.body.user = {
-            ...ctx.response.body.user,
-            userRole: fullUser.userRole,
-            accountStatus: fullUser.accountStatus,
-            displayName: fullUser.displayName,
-            bio: fullUser.bio,
-            avatarUrl: fullUser.avatarUrl
-          };
-        }
-      }
-    };
+          const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].primary_profile_id;
+          strapi.log.info(`[Auth Login REGISTER] primary_profile_id from SQL: ${primaryProfileId}`);
 
-    // Override callback for OAuth logins
-    strapi.plugins['users-permissions'].controllers.auth.callback = async (ctx) => {
-      await originalCallback(ctx);
+          // Fetch primary profile separately if exists
+          let primaryProfile = null;
+          if (primaryProfileId) {
+            // Use direct SQL to fetch profile details (avoid Strapi 5 bug)
+            const profileSqlResult = await strapi.db.connection.raw(
+              'SELECT id, name, description FROM permission_profiles WHERE id = ?',
+              [primaryProfileId]
+            );
 
-      if (ctx.response.body && ctx.response.body.user) {
-        await handleSuccessfulLogin(ctx.response.body.user.id, ctx, strapi);
+            primaryProfile = profileSqlResult && profileSqlResult[0] ? {
+              id: profileSqlResult[0].id,
+              name: profileSqlResult[0].name,
+              description: profileSqlResult[0].description
+            } : null;
 
-        // Fetch full user object with custom fields to include in response
-        const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
-          where: { id: ctx.response.body.user.id }
-        });
-
-        // Add custom fields to response (userRole, accountStatus, etc.)
-        if (fullUser) {
-          ctx.response.body.user = {
-            ...ctx.response.body.user,
-            userRole: fullUser.userRole,
-            accountStatus: fullUser.accountStatus,
-            displayName: fullUser.displayName,
-            bio: fullUser.bio,
-            avatarUrl: fullUser.avatarUrl
-          };
-        }
-      }
-    };
-
-    // REMOVED FOR PRODUCTION: console.log('[index.ts register] Auth controller extended successfully');
-
-    // Helper function for login tracking
-    async function handleSuccessfulLogin(userId: number, ctx: any, strapi: any) {
-      try {
-        const user = await strapi.query('plugin::users-permissions.user').findOne({
-          where: { id: userId }
-        });
-
-        // Update login count and last login time
-        await strapi.query('plugin::users-permissions.user').update({
-          where: { id: userId },
-          data: {
-            lastLoginAt: new Date(),
-            loginCount: (user.loginCount || 0) + 1
+            strapi.log.info(`[Auth Login REGISTER] Profile fetched: ${primaryProfile?.name || 'none'}`);
           }
-        });
 
-        // Log login activity and history
-        const activityLogger = strapi.service('api::activity-logger.activity-logger');
-        if (activityLogger) {
-          await activityLogger.logActivity(userId, 'login', {
-            username: user.username
-          }, ctx);
-
-          await activityLogger.logLogin(userId, { success: true }, ctx);
+          // Add primaryProfile to response
+          ctx.response.body.user.primaryProfile = primaryProfile;
+          strapi.log.info(`[Auth Login REGISTER] FINAL primaryProfile: ${ctx.response.body.user.primaryProfile?.name || 'none'}`);
+        } catch (error) {
+          strapi.log.error('[Auth Login REGISTER] ERROR:', error);
         }
-      } catch (error) {
-        console.error('[Auth Extension] Error tracking login activity:', error);
       }
-    }
+    };
+
+    strapi.log.info('[index.ts register] Auth login override installed successfully!');
   },
 
   /**
@@ -146,6 +72,8 @@ export default {
    * run jobs, or perform some special logic.
    */
   async bootstrap({ strapi }) {
+    strapi.log.info('[index.ts bootstrap] BOOTSTRAP FUNCTION CALLED');
+
     // Seed predefined categories
     const predefinedCategories = [
       { name: 'Technology', color: '#3B82F6', description: 'Technology and software opinions' },

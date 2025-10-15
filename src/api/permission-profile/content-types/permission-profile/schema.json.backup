@@ -22,11 +22,10 @@
       "type": "text",
       "maxLength": 500
     },
-    "menuPermissions": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::menu-permission.menu-permission",
-      "inversedBy": "permission_profiles"
+    "permissions": {
+      "type": "json",
+      "required": true,
+      "default": []
     },
     "isSystemProfile": {
       "type": "boolean",
@@ -38,12 +37,6 @@
       "relation": "manyToMany",
       "target": "plugin::users-permissions.user",
       "inversedBy": "permissionProfiles"
-    },
-    "primaryUsers": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "plugin::users-permissions.user",
-      "mappedBy": "primaryProfile"
     }
   }
 }

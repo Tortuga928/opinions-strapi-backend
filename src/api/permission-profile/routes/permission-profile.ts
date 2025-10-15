@@ -54,6 +54,16 @@ export default {
         policies: [],
         middlewares: [],
       }
+    },
+    {
+      method: 'PUT',
+      path: '/permission-profiles/:id/menus',
+      handler: 'api::permission-profile.permission-profile.updateMenus',
+      config: {
+        auth: false,
+        policies: [],
+        middlewares: [],
+      }
     }
   ]
 };

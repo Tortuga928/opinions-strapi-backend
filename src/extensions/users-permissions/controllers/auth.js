@@ -78,6 +78,80 @@ module.exports = (plugin) => {
     await originalLogin(ctx);
     if (ctx.response.body && ctx.response.body.user) {
       await handleSuccessfulLogin(ctx.response.body.user.id, ctx);
+
+      // CRITICAL FIX: Populate primaryProfile relation for frontend
+      // The frontend needs primaryProfile to display the profile name in the sidebar
+      // and useUserPermissions hook needs it to fetch the correct menu permissions
+      // WORKAROUND for Strapi 5 Bug #20330: Use direct SQL to fetch primary_profile_id
+      strapi.log.info(`[Auth Login] STARTING primaryProfile population for user ${ctx.response.body.user.id}`);
+      try {
+        const userId = ctx.response.body.user.id;
+
+        // Get base user data without populate (populate is broken for primaryProfile)
+        const userWithProfile = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
+        strapi.log.info(`[Auth Login] Step 1: Fetched user ${userId} from entityService`);
+
+        // Use direct SQL to fetch primary_profile_id
+        const sqlResult = await strapi.db.connection.raw(
+          'SELECT primary_profile_id FROM up_users WHERE id = ?',
+          [userId]
+        );
+
+        const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].primary_profile_id;
+        strapi.log.info(`[Auth Login] Step 2: User ${userId} primary_profile_id from SQL: ${primaryProfileId}`);
+
+        // Fetch primary profile separately if exists
+        if (primaryProfileId) {
+          try {
+            // Use direct SQL to fetch profile details (avoid Strapi 5 bug)
+            const profileSqlResult = await strapi.db.connection.raw(
+              'SELECT id, name, description FROM permission_profiles WHERE id = ?',
+              [primaryProfileId]
+            );
+
+            const primaryProfile = profileSqlResult && profileSqlResult[0] ? {
+              id: profileSqlResult[0].id,
+              name: profileSqlResult[0].name,
+              description: profileSqlResult[0].description
+            } : null;
+
+            strapi.log.info(`[Auth Login] Step 3: Successfully fetched profile via SQL: ${primaryProfile?.name || 'none'}`);
+            userWithProfile.primaryProfile = primaryProfile;
+            strapi.log.info(`[Auth Login] Step 4: Attached primaryProfile to userWithProfile object`);
+          } catch (error) {
+            strapi.log.error(`[Auth Login] Error fetching primaryProfile ${primaryProfileId}:`, error);
+            userWithProfile.primaryProfile = null;
+          }
+        } else {
+          strapi.log.info(`[Auth Login] Step 3: User ${userId} has no primary profile`);
+          userWithProfile.primaryProfile = null;
+        }
+
+        strapi.log.info(`[Auth Login] Step 5: BEFORE sanitize - primaryProfile: ${JSON.stringify(userWithProfile.primaryProfile)}`);
+
+        // Update response with populated profile data
+        // IMPORTANT: sanitize may strip out primaryProfile if it's not in the schema
+        // So we'll add it AFTER sanitization
+        const sanitizedUser = await sanitize.contentAPI.output(
+          userWithProfile,
+          strapi.getModel('plugin::users-permissions.user')
+        );
+
+        strapi.log.info(`[Auth Login] Step 6: AFTER sanitize - primaryProfile: ${JSON.stringify(sanitizedUser.primaryProfile)}`);
+
+        // Re-attach primaryProfile after sanitization (in case sanitize stripped it)
+        if (!sanitizedUser.primaryProfile && userWithProfile.primaryProfile) {
+          strapi.log.info(`[Auth Login] Step 7: Sanitize stripped primaryProfile, re-attaching it`);
+          sanitizedUser.primaryProfile = userWithProfile.primaryProfile;
+        }
+
+        ctx.response.body.user = sanitizedUser;
+
+        strapi.log.info(`[Auth Login] Step 8: FINAL user object primaryProfile: ${ctx.response.body.user.primaryProfile?.name || 'none'}`);
+      } catch (error) {
+        strapi.log.error('[Auth Login] ERROR during primaryProfile population:', error);
+        strapi.log.error('[Auth Login] Error stack:', error.stack);
+      }
     }
   };
 

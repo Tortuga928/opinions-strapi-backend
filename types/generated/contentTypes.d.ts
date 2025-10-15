@@ -462,6 +462,67 @@ export interface ApiLoginHistoryLoginHistory
   };
 }
 
+export interface ApiMenuPermissionMenuPermission
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'menu_permissions';
+  info: {
+    description: 'Menu items that can be granted to users via permission profiles';
+    displayName: 'Menu Permission';
+    pluralName: 'menu-permissions';
+    singularName: 'menu-permission';
+  };
+  options: {
+    comment: '';
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text;
+    displayName: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 100;
+      }>;
+    isSystemMenu: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<false>;
+    key: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 100;
+      }>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::menu-permission.menu-permission'
+    > &
+      Schema.Attribute.Private;
+    menuCategory: Schema.Attribute.Enumeration<['regular', 'admin']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'regular'>;
+    menuIcon: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 10;
+      }>;
+    permission_profiles: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::permission-profile.permission-profile'
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users: Schema.Attribute.Relation<
+      'manyToMany',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiOpinionOpinion extends Struct.CollectionTypeSchema {
   collectionName: 'opinions';
   info: {
@@ -542,15 +603,20 @@ export interface ApiPermissionProfilePermissionProfile
       'api::permission-profile.permission-profile'
     > &
       Schema.Attribute.Private;
+    menuPermissions: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::menu-permission.menu-permission'
+    >;
     name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique &
       Schema.Attribute.SetMinMaxLength<{
         maxLength: 100;
       }>;
-    permissions: Schema.Attribute.JSON &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<[]>;
+    primaryUsers: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::users-permissions.user'
+    >;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1293,6 +1359,13 @@ export interface PluginUsersPermissionsUser
     emailVerified: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     forcePasswordReset: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
+    individualMenuPermissions: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::menu-permission.menu-permission'
+    >;
+    isSuperAdmin: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<false>;
     lastLoginAt: Schema.Attribute.DateTime;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -1313,6 +1386,10 @@ export interface PluginUsersPermissionsUser
     pendingEmail: Schema.Attribute.Email & Schema.Attribute.Private;
     permissionProfiles: Schema.Attribute.Relation<
       'manyToMany',
+      'api::permission-profile.permission-profile'
+    >;
+    primaryProfile: Schema.Attribute.Relation<
+      'manyToOne',
       'api::permission-profile.permission-profile'
     >;
     provider: Schema.Attribute.String;
@@ -1354,6 +1431,7 @@ declare module '@strapi/strapi' {
       'admin::user': AdminUser;
       'api::category.category': ApiCategoryCategory;
       'api::login-history.login-history': ApiLoginHistoryLoginHistory;
+      'api::menu-permission.menu-permission': ApiMenuPermissionMenuPermission;
       'api::opinion.opinion': ApiOpinionOpinion;
       'api::permission-profile.permission-profile': ApiPermissionProfilePermissionProfile;
       'api::quote-draft.quote-draft': ApiQuoteDraftQuoteDraft;
