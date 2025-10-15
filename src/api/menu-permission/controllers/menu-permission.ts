@@ -57,7 +57,7 @@ export default {
 
     try {
       const menus = await strapi.entityService.findMany('api::menu-permission.menu-permission', {
-        sort: 'sort_order:asc',
+        sort: 'sortOrder:asc' as any,
         populate: ['permission_profiles', 'users']
       });
 
