@@ -98,16 +98,6 @@ export default {
         middlewares: [],
       }
     },
-    {
-      method: 'GET',
-      path: '/user-management/menus',
-      handler: 'user-management.getUserMenus',
-      config: {
-        auth: false,  // Auth handled in controller via authenticateRequest()
-        policies: [],
-        middlewares: [],
-      }
-    },
 
     // Email Verification Routes
     {
