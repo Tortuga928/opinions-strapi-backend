@@ -210,5 +210,22 @@ export default {
     } catch (error) {
       console.error('❌ Error configuring quote-draft permissions:', error);
     }
+
+    // AUTO-SEED PERMISSION SYSTEM (Production Fix)
+    // This runs automatically on startup if database is empty
+    try {
+      const profileCount = await strapi.db.query('api::permission-profile.permission-profile').count();
+
+      if (profileCount === 0) {
+        strapi.log.info('📋 Permission system database is empty, running auto-seeding...');
+        const seedScript = require('../scripts/seed-production-permission-system.js');
+        await seedScript();
+        strapi.log.info('✅ Permission system auto-seeding complete!');
+      } else {
+        strapi.log.info(`✅ Permission system already seeded (${profileCount} profiles found)`);
+      }
+    } catch (error) {
+      console.error('❌ Error auto-seeding permission system:', error);
+    }
   },
 };
