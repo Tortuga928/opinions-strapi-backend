@@ -227,13 +227,9 @@ export default {
         return ctx.notFound('Permission profile not found');
       }
 
-      // Check if profile is assigned to user
-      const userWithRelations = user as any;
-      const assignedProfileIds = userWithRelations.permissionProfiles?.map((p: any) => p.id) || [];
-
-      if (!assignedProfileIds.includes(profileId)) {
-        return ctx.badRequest('Profile must be assigned to user before setting as primary');
-      }
+      // REMOVED VALIDATION: Profile does NOT need to be in permissionProfiles array before setting as primary
+      // Users can have a primary profile without it being in the many-to-many permissionProfiles relation
+      // This is intentional - primaryProfile is independent and can be set directly
 
       // CRITICAL FIX: Clear ALL individual menu permissions before setting new primary profile
       // Individual permissions should only exist when they override the primary profile
