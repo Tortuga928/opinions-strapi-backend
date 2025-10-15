@@ -66,26 +66,32 @@ export default {
          ORDER BY sort_order ASC`
       );
 
-      // Handle different result formats: PostgreSQL returns {rows: [...]} while SQLite returns [...]
+      // CRITICAL FIX: Handle different result formats between PostgreSQL and SQLite
+      // PostgreSQL returns {rows: [...]} while SQLite returns [...]
       const rows = sqlResult.rows || sqlResult;
 
+      strapi.log.info(`[menu-permission.find] SQL returned ${rows?.length || 0} rows`);
+      strapi.log.info(`[menu-permission.find] First row sample:`, rows[0]);
+
       // Transform SQL results to match Strapi format (camelCase field names)
+      // IMPORTANT: Both PostgreSQL and SQLite return snake_case column names
       const menus = rows.map((row: any) => ({
         id: row.id,
-        documentId: row.document_id,
+        documentId: row.document_id || row.documentId,  // Fallback for both formats
         key: row.key,
-        displayName: row.display_name,
+        displayName: row.display_name || row.displayName,
         description: row.description,
-        menuIcon: row.menu_icon,
-        isSystemMenu: row.is_system_menu,
-        sortOrder: row.sort_order,
-        menuCategory: row.menu_category,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        publishedAt: row.published_at
+        menuIcon: row.menu_icon || row.menuIcon,
+        isSystemMenu: row.is_system_menu !== undefined ? row.is_system_menu : row.isSystemMenu,
+        sortOrder: row.sort_order !== undefined ? row.sort_order : row.sortOrder,
+        menuCategory: row.menu_category || row.menuCategory,
+        createdAt: row.created_at || row.createdAt,
+        updatedAt: row.updated_at || row.updatedAt,
+        publishedAt: row.published_at || row.publishedAt
       }));
 
       strapi.log.info(`[menu-permission.find] Returning ${menus.length} menu permissions via direct SQL`);
+      strapi.log.info(`[menu-permission.find] First menu sample:`, menus[0]);
       return { data: menus };
     } catch (error) {
       strapi.log.error('Error listing menu permissions:', error);
