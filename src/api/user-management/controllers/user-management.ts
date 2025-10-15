@@ -94,19 +94,19 @@ export default {
 
       // WORKAROUND for Strapi 5 Bug #20330: Manually fetch and attach primaryProfile
       // The populate mechanism is completely broken for primaryProfile relation
-      // Solution: Use direct SQL to fetch primary_profile_id column for each user
+      // Solution: Use direct SQL to fetch from link table (production uses link table, not direct column)
       strapi.log.info(`[PRIMARY PROFILE DEBUG] Processing ${users.length} users`);
       for (const user of users) {
-        // Use direct SQL to fetch primary_profile_id from database
+        // Use direct SQL to fetch primary_profile_id from link table
+        // Production uses: up_users_primary_profile_lnk (user_id, permission_profile_id)
         const sqlResult = await strapi.db.connection.raw(
-          'SELECT primary_profile_id FROM up_users WHERE id = ?',
+          'SELECT permission_profile_id FROM up_users_primary_profile_lnk WHERE user_id = ?',
           [user.id]
         );
 
-        // Extract primary_profile_id from SQL result
-        // SQLite returns array of rows, first row is the user
-        const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].primary_profile_id;
-        strapi.log.info(`[PRIMARY PROFILE DEBUG] User ${user.id} (${user.username}) primary_profile_id from SQL: ${primaryProfileId}`);
+        // Extract permission_profile_id from SQL result
+        const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].permission_profile_id;
+        strapi.log.info(`[PRIMARY PROFILE DEBUG] User ${user.id} (${user.username}) primaryProfileId from link table: ${primaryProfileId}`);
 
         if (primaryProfileId) {
           try {
