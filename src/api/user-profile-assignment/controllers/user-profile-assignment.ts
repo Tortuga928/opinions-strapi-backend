@@ -489,9 +489,11 @@ export default {
         [userId]
       );
 
-      const individualMenus = individualMenusResult || [];
+      // CRITICAL FIX: Handle different result formats between PostgreSQL and SQLite
+      // PostgreSQL returns {rows: [...]} while SQLite returns [...]
+      const individualMenus = individualMenusResult.rows || individualMenusResult || [];
 
-      strapi.log.info(`Retrieved ${individualMenus.length} individual menu permission(s) for user ${user.username}`);
+      strapi.log.info(`[getIndividualMenus] SQL returned ${individualMenus.length} individual menu permission(s) for user ${user.username}`);
 
       return {
         data: {
