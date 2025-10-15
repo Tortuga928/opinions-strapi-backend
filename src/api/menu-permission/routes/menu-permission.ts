@@ -1,61 +1,38 @@
 /**
- * menu-permission custom routes
+ * menu-permission router
  *
- * All routes use auth: false because authentication is handled
- * via authenticateRequest() helper function in the controller
+ * Uses Strapi's core router factory to generate CRUD routes
+ * Authentication handled in controller via authenticateRequest() helper
  */
 
-export default {
-  routes: [
-    {
-      method: 'GET',
-      path: '/menu-permissions',
-      handler: 'menu-permission.find',
-      config: {
-        auth: false,  // Auth handled in controller
-        policies: [],
-        middlewares: [],
-      }
+import { factories } from '@strapi/strapi';
+
+export default factories.createCoreRouter('api::menu-permission.menu-permission', {
+  config: {
+    find: {
+      auth: false,  // Auth handled in controller
+      policies: [],
+      middlewares: [],
     },
-    {
-      method: 'GET',
-      path: '/menu-permissions/:id',
-      handler: 'menu-permission.findOne',
-      config: {
-        auth: false,  // Auth handled in controller
-        policies: [],
-        middlewares: [],
-      }
+    findOne: {
+      auth: false,  // Auth handled in controller
+      policies: [],
+      middlewares: [],
     },
-    {
-      method: 'POST',
-      path: '/menu-permissions',
-      handler: 'menu-permission.create',
-      config: {
-        auth: false,  // Auth handled in controller
-        policies: [],
-        middlewares: [],
-      }
+    create: {
+      auth: false,  // Auth handled in controller
+      policies: [],
+      middlewares: [],
     },
-    {
-      method: 'PUT',
-      path: '/menu-permissions/:id',
-      handler: 'menu-permission.update',
-      config: {
-        auth: false,  // Auth handled in controller
-        policies: [],
-        middlewares: [],
-      }
+    update: {
+      auth: false,  // Auth handled in controller
+      policies: [],
+      middlewares: [],
     },
-    {
-      method: 'DELETE',
-      path: '/menu-permissions/:id',
-      handler: 'menu-permission.delete',
-      config: {
-        auth: false,  // Auth handled in controller
-        policies: [],
-        middlewares: [],
-      }
+    delete: {
+      auth: false,  // Auth handled in controller
+      policies: [],
+      middlewares: [],
     }
-  ]
-};
+  }
+});
