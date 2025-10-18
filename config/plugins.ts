@@ -3,7 +3,7 @@ import path from 'path';
 export default ({ env }) => ({
   email: {
     config: {
-      provider: path.resolve('./src/providers/sendgrid-direct.js'),
+      provider: path.join(__dirname, '..', 'src', 'providers', 'sendgrid-direct.js'),
       providerOptions: {
         apiKey: env('SENDGRID_API_KEY'),
       },
