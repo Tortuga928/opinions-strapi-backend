@@ -9,13 +9,13 @@ A Strapi CMS backend for the Opinion Rating application, providing RESTful APIs 
 - **User Ratings**: Individual user rating system with isolation
 - **Statistics API**: Aggregated statistics for opinions
 - **Rate Limiting**: Built-in protection against API abuse
-- **Database Support**: SQLite (dev) / PostgreSQL (production)
+- **Database Support**: PostgreSQL (Docker for dev, managed for production)
 - **Security**: Input validation, CORS, and security headers
 
 ## Technology Stack
 
 - **Framework**: Strapi 5.x
-- **Database**: SQLite (development) / PostgreSQL (production)
+- **Database**: PostgreSQL 15 (Docker for development, managed for production)
 - **Authentication**: JWT tokens
 - **Language**: JavaScript/TypeScript
 - **Runtime**: Node.js 16+
@@ -135,32 +135,38 @@ GET    /api/user-ratings?stats=true&opinionId=X  # Get opinion statistics
    openssl rand -base64 32  # Run multiple times for different keys
    ```
 
-### Database Migration
+### Database Setup
 
-#### From SQLite to PostgreSQL
+#### Docker PostgreSQL (Development)
 
-1. **Export data from SQLite**
+The project uses Docker Compose for PostgreSQL in development.
+
+1. **Start PostgreSQL container**
    ```bash
-   npm run strapi export -- --file backup.tar.gz
+   docker-compose up -d postgres
    ```
 
-2. **Setup PostgreSQL database**
-   ```sql
-   CREATE DATABASE opinions_production;
-   CREATE USER strapi_user WITH ENCRYPTED PASSWORD 'password';
-   GRANT ALL PRIVILEGES ON DATABASE opinions_production TO strapi_user;
-   ```
-
-3. **Update .env for PostgreSQL**
+2. **Verify container is healthy**
    ```bash
-   DATABASE_CLIENT=postgres
-   # ... other PostgreSQL settings
+   docker ps
+   # Look for "healthy" status for opinions-postgres
    ```
 
-4. **Import data**
+3. **Database auto-migration**
+   Strapi automatically creates/updates database schema on startup.
+
+4. **Connect to PostgreSQL (optional)**
    ```bash
-   npm run strapi import -- --file backup.tar.gz
+   docker exec -it opinions-postgres psql -U strapi -d opinions_dev
    ```
+
+#### Production PostgreSQL
+
+Production uses managed PostgreSQL (e.g., Render.com, AWS RDS, etc.).
+
+1. **Configure DATABASE_URL** in production environment
+2. **Enable DATABASE_SSL=true** for production
+3. **Strapi auto-migrates** schema on first deployment
 
 ### Deployment Options
 
@@ -334,7 +340,7 @@ npm run strapi import -- --file backup.tar.gz
 
 - Default port: 1341 (development)
 - Admin credentials created on first run
-- SQLite database stored in `.tmp/data.db`
+- PostgreSQL database runs in Docker container (opinions-postgres)
 - Uploads stored in `public/uploads`
 
 ## License
