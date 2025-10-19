@@ -122,15 +122,17 @@ export default () => ({
         }
       });
 
-      // WORKAROUND for Strapi 5 Bug: Use direct SQL to fetch primary_profile_id
+      // WORKAROUND for Strapi 5 Bug: Use direct SQL to fetch from join table
       // The primaryProfile populate is broken in Strapi 5 for relations to same table
       const sqlResult = await strapi.db.connection.raw(
-        'SELECT primary_profile_id FROM up_users WHERE id = ?',
+        'SELECT permission_profile_id FROM up_users_primary_profile_lnk WHERE user_id = ?',
         [userId]
       );
 
-      const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].primary_profile_id;
-      strapi.log.info(`[PERMISSION CHECKER] User ${userId} primary_profile_id from SQL: ${primaryProfileId}`);
+      // Handle PostgreSQL .rows format
+      const rows = sqlResult.rows || sqlResult;
+      const primaryProfileId = rows && rows[0] && rows[0].permission_profile_id;
+      strapi.log.info(`[PERMISSION CHECKER] User ${userId} primary_profile_id from join table: ${primaryProfileId}`);
 
       // Collect primary profile menus if exists
       if (primaryProfileId) {

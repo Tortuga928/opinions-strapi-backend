@@ -18,14 +18,16 @@ export default () => {
         strapi.log.info(`[Auth Response Enhancer] Processing user ${userId}`);
 
         try {
-          // Use direct SQL to fetch primary_profile_id
+          // Use direct SQL to fetch primary_profile from join table (PostgreSQL schema)
           const sqlResult = await strapi.db.connection.raw(
-            'SELECT primary_profile_id FROM up_users WHERE id = ?',
+            'SELECT permission_profile_id FROM up_users_primary_profile_lnk WHERE user_id = ?',
             [userId]
           );
 
-          const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].primary_profile_id;
-          strapi.log.info(`[Auth Response Enhancer] primary_profile_id from SQL: ${primaryProfileId}`);
+          // Handle PostgreSQL .rows format
+          const rows = sqlResult.rows || sqlResult;
+          const primaryProfileId = rows && rows[0] && rows[0].permission_profile_id;
+          strapi.log.info(`[Auth Response Enhancer] primary_profile_id from join table: ${primaryProfileId}`);
 
           // Fetch primary profile separately if exists
           let primaryProfile = null;
