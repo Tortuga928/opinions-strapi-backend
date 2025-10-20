@@ -1,12 +1,17 @@
 /**
  * Seed Content-Type Permissions
- * Configures Strapi role permissions for custom content types
+ * Configures Strapi role permissions for all content types
  *
  * This script sets up permissions for:
- * - quote-draft (authenticated users)
- * - user-activity-log (authenticated users)
+ * - category (authenticated users - find, findOne)
+ * - opinion (authenticated users - find, findOne, create, update)
+ * - user-rating (authenticated users - find, findOne, create, update, delete)
+ * - quote-draft (authenticated users - full CRUD + custom actions)
+ * - user-activity-log (authenticated users - find, findOne, update, count, markAllAsRead)
+ * - menu-permission (authenticated users - find, findOne)
  *
- * This script is called by seed-master.js during bootstrap
+ * This script is called by bootstrap on EVERY startup (not just empty database)
+ * because content-type permissions are Strapi configuration, not database records
  *
  * Usage:
  *   - Via Bootstrap: Automatically runs on every startup
@@ -34,8 +39,58 @@ module.exports = async function seedContentPermissions() {
       currentPermissions.authenticated = {};
     }
 
+    // Configure category permissions (read-only)
+    if (!currentPermissions.authenticated['api::category']) {
+      currentPermissions.authenticated['api::category'] = {};
+    }
+    currentPermissions.authenticated['api::category'] = {
+      controllers: {
+        'category': {
+          find: { enabled: true },
+          findOne: { enabled: true }
+        }
+      }
+    };
+    console.log('  ✓ Category permissions configured');
+
+    // Configure opinion permissions
+    if (!currentPermissions.authenticated['api::opinion']) {
+      currentPermissions.authenticated['api::opinion'] = {};
+    }
+    currentPermissions.authenticated['api::opinion'] = {
+      controllers: {
+        'opinion': {
+          find: { enabled: true },
+          findOne: { enabled: true },
+          create: { enabled: true },
+          update: { enabled: true }
+        }
+      }
+    };
+    console.log('  ✓ Opinion permissions configured');
+
+    // Configure user-rating permissions
+    if (!currentPermissions.authenticated['api::user-rating']) {
+      currentPermissions.authenticated['api::user-rating'] = {};
+    }
+    currentPermissions.authenticated['api::user-rating'] = {
+      controllers: {
+        'user-rating': {
+          find: { enabled: true },
+          findOne: { enabled: true },
+          create: { enabled: true },
+          update: { enabled: true },
+          delete: { enabled: true }
+        }
+      }
+    };
+    console.log('  ✓ User-rating permissions configured');
+
     // Configure quote-draft permissions
-    const quoteDraftPermissions = {
+    if (!currentPermissions.authenticated['api::quote-draft']) {
+      currentPermissions.authenticated['api::quote-draft'] = {};
+    }
+    currentPermissions.authenticated['api::quote-draft'] = {
       controllers: {
         'quote-draft': {
           find: { enabled: true },
@@ -49,15 +104,13 @@ module.exports = async function seedContentPermissions() {
         }
       }
     };
-
-    if (!currentPermissions.authenticated['api::quote-draft']) {
-      currentPermissions.authenticated['api::quote-draft'] = {};
-    }
-    currentPermissions.authenticated['api::quote-draft'] = quoteDraftPermissions;
     console.log('  ✓ Quote-draft permissions configured');
 
     // Configure user-activity-log permissions
-    const activityLogPermissions = {
+    if (!currentPermissions.authenticated['api::user-activity-log']) {
+      currentPermissions.authenticated['api::user-activity-log'] = {};
+    }
+    currentPermissions.authenticated['api::user-activity-log'] = {
       controllers: {
         'user-activity-log': {
           find: { enabled: true },
@@ -68,17 +121,26 @@ module.exports = async function seedContentPermissions() {
         }
       }
     };
-
-    if (!currentPermissions.authenticated['api::user-activity-log']) {
-      currentPermissions.authenticated['api::user-activity-log'] = {};
-    }
-    currentPermissions.authenticated['api::user-activity-log'] = activityLogPermissions;
     console.log('  ✓ User-activity-log permissions configured');
+
+    // Configure menu-permission permissions (read-only)
+    if (!currentPermissions.authenticated['api::menu-permission']) {
+      currentPermissions.authenticated['api::menu-permission'] = {};
+    }
+    currentPermissions.authenticated['api::menu-permission'] = {
+      controllers: {
+        'menu-permission': {
+          find: { enabled: true },
+          findOne: { enabled: true }
+        }
+      }
+    };
+    console.log('  ✓ Menu-permission permissions configured');
 
     // Save permissions
     await pluginStore.set({ key: 'grant', value: currentPermissions });
 
-    console.log('✅ Content-type permissions configured\n');
+    console.log('✅ All content-type permissions configured\n');
   } catch (error) {
     console.error('❌ Error configuring content-type permissions:', error);
     throw error;

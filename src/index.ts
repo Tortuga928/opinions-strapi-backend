@@ -76,7 +76,7 @@ export default {
   async bootstrap({ strapi }) {
     strapi.log.info('[Bootstrap] Starting application bootstrap...');
 
-    // AUTO-SEED DATABASE
+    // STEP 1: AUTO-SEED DATABASE (only when empty)
     // Checks if database needs seeding and runs seed-master.js
     // seed-master.js orchestrates all seed scripts in dependency order
     try {
@@ -98,6 +98,21 @@ export default {
     } catch (error) {
       console.error('[Bootstrap] ❌ Error during database seeding:', error);
       // Don't throw - allow app to start even if seeding fails
+    }
+
+    // STEP 2: CONFIGURE CONTENT-TYPE PERMISSIONS (always run)
+    // Content-type permissions are Strapi configuration, not database records
+    // Must be configured on every startup to ensure permissions are correct
+    try {
+      strapi.log.info('[Bootstrap] Configuring content-type permissions...');
+
+      const seedContentPermissions = require('../../scripts/seed-content-permissions.js');
+      await seedContentPermissions();
+
+      strapi.log.info('[Bootstrap] ✅ Content-type permissions configured!');
+    } catch (error) {
+      console.error('[Bootstrap] ❌ Error configuring content-type permissions:', error);
+      // Don't throw - allow app to start even if permission config fails
     }
 
     strapi.log.info('[Bootstrap] Bootstrap complete, starting application...\n');
