@@ -712,9 +712,11 @@ export default {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       // Update password and clear any email verification fields
-      // BUGFIX: Strapi sometimes sets emailVerificationToken and pendingEmail
-      // during updates, which breaks authentication. Explicitly clear them.
-      await strapi.entityService.update('plugin::users-permissions.user', currentUser.id, {
+      // BUGFIX: Use query().update() instead of entityService.update() to bypass lifecycle hooks
+      // that would double-hash the password. Also clear emailVerificationToken and pendingEmail
+      // to prevent authentication issues.
+      await strapi.query('plugin::users-permissions.user').update({
+        where: { id: currentUser.id },
         data: {
           password: hashedPassword,
           emailVerificationToken: null,
