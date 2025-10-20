@@ -367,11 +367,14 @@ export default {
         // Hash password using bcrypt
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
+        // BUGFIX: Explicitly clear email verification fields to prevent auth issues
         await strapi.query('plugin::users-permissions.user').update({
           where: { id: userId },
           data: {
             password: hashedPassword,
-            forcePasswordReset: true
+            forcePasswordReset: true,
+            email_verification_token: null,
+            pending_email: null
           }
         });
 
@@ -389,8 +392,13 @@ export default {
         // Trigger password reset email
         // This would use Strapi's built-in forgot-password flow
         // For now, just set forcePasswordReset flag
+        // BUGFIX: Clear email verification fields to prevent auth issues
         await strapi.entityService.update('plugin::users-permissions.user', userId, {
-          data: { forcePasswordReset: true }
+          data: {
+            forcePasswordReset: true,
+            email_verification_token: null,
+            pending_email: null
+          }
         });
 
         return { data: { message: 'Password reset email sent (forcePasswordReset flag set)' } };
@@ -703,10 +711,14 @@ export default {
       // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      // Update password
+      // Update password and clear any email verification fields
+      // BUGFIX: Strapi sometimes sets email_verification_token and pending_email
+      // during updates, which breaks authentication. Explicitly clear them.
       await strapi.entityService.update('plugin::users-permissions.user', currentUser.id, {
         data: {
-          password: hashedPassword
+          password: hashedPassword,
+          email_verification_token: null,
+          pending_email: null
         }
       });
 
