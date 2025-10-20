@@ -220,7 +220,9 @@ export default {
 
       if (profileCount === 0) {
         strapi.log.info('📋 Permission system database is empty, running auto-seeding...');
-        const seedScript = require('../scripts/seed-production-permission-system.js');
+        // CRITICAL FIX: Path is relative to dist/src/index.js after compilation
+        // ../../scripts/ goes from dist/src/ up to project root, then into scripts/
+        const seedScript = require('../../scripts/seed-production-permission-system.js');
         await seedScript();
         strapi.log.info('✅ Permission system auto-seeding complete!');
       } else {
