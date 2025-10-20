@@ -373,8 +373,8 @@ export default {
           data: {
             password: hashedPassword,
             forcePasswordReset: true,
-            email_verification_token: null,
-            pending_email: null
+            emailVerificationToken: null,
+            pendingEmail: null
           }
         });
 
@@ -396,8 +396,8 @@ export default {
         await strapi.entityService.update('plugin::users-permissions.user', userId, {
           data: {
             forcePasswordReset: true,
-            email_verification_token: null,
-            pending_email: null
+            emailVerificationToken: null,
+            pendingEmail: null
           }
         });
 
@@ -712,13 +712,13 @@ export default {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       // Update password and clear any email verification fields
-      // BUGFIX: Strapi sometimes sets email_verification_token and pending_email
+      // BUGFIX: Strapi sometimes sets emailVerificationToken and pendingEmail
       // during updates, which breaks authentication. Explicitly clear them.
       await strapi.entityService.update('plugin::users-permissions.user', currentUser.id, {
         data: {
           password: hashedPassword,
-          email_verification_token: null,
-          pending_email: null
+          emailVerificationToken: null,
+          pendingEmail: null
         }
       });
 
