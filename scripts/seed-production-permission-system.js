@@ -2,7 +2,9 @@
  * Production Permission System Seeding Script
  *
  * This script populates the permission system tables with:
- * - 7 menu permissions (Home, Opinions, Opinion Generator, AI Test, Users, Permissions, Profile)
+ * - 7 menu permissions (Home, Opinions, Opinion Generator, AI Test, User Profile, Users Management, Permission Profiles)
+ *   - 5 regular menus (home, opinions, opinion-generator, ai-test, user-profile)
+ *   - 2 admin menus (users-management, permission-profiles)
  * - 3 system profiles (Full Access, Regular User, Read Only)
  * - Assigns existing users to appropriate profiles based on their userRole
  *
@@ -22,13 +24,13 @@ module.exports = async function seedProductionPermissionSystem() {
     console.log('📋 Step 1: Creating menu permissions...');
 
     const menuPermissions = [
-      { key: 'home', displayName: 'Home', description: 'Homepage', menuIcon: '🏠', isSystemMenu: true, sortOrder: 1 },
-      { key: 'opinions', displayName: 'Opinions', description: 'View and rate opinions', menuIcon: '💭', isSystemMenu: false, sortOrder: 2 },
-      { key: 'opinion-generator', displayName: 'Opinion Generator', description: 'AI opinion generation', menuIcon: '🔄', isSystemMenu: false, sortOrder: 3 },
-      { key: 'ai-test', displayName: 'AI Test', description: 'Claude AI chat interface', menuIcon: '🧪', isSystemMenu: false, sortOrder: 4 },
-      { key: 'users', displayName: 'Users', description: 'User management (admin)', menuIcon: '👥', isSystemMenu: false, sortOrder: 5 },
-      { key: 'permissions', displayName: 'Permissions', description: 'Permission management (admin)', menuIcon: '🔐', isSystemMenu: false, sortOrder: 6 },
-      { key: 'user-profile', displayName: 'Profile', description: 'User profile page', menuIcon: '👤', isSystemMenu: true, sortOrder: 7 }
+      { key: 'home', displayName: 'Home', description: 'Homepage', menuIcon: '🏠', menuCategory: 'regular', isSystemMenu: true, sortOrder: 1 },
+      { key: 'opinions', displayName: 'Opinions', description: 'View and rate opinions', menuIcon: '💭', menuCategory: 'regular', isSystemMenu: false, sortOrder: 2 },
+      { key: 'opinion-generator', displayName: 'Opinion Generator', description: 'AI opinion generation', menuIcon: '🤖', menuCategory: 'regular', isSystemMenu: false, sortOrder: 3 },
+      { key: 'ai-test', displayName: 'AI Test', description: 'Claude AI chat interface', menuIcon: '🧪', menuCategory: 'regular', isSystemMenu: false, sortOrder: 4 },
+      { key: 'user-profile', displayName: 'Profile', description: 'User profile page', menuIcon: '👤', menuCategory: 'regular', isSystemMenu: true, sortOrder: 5 },
+      { key: 'users-management', displayName: 'Users Management', description: 'User management (admin)', menuIcon: '👥', menuCategory: 'admin', isSystemMenu: false, sortOrder: 6 },
+      { key: 'permission-profiles', displayName: 'Permission Profiles', description: 'Permission management (admin)', menuIcon: '🔐', menuCategory: 'admin', isSystemMenu: false, sortOrder: 7 }
     ];
 
     const createdMenus = [];
@@ -59,7 +61,7 @@ module.exports = async function seedProductionPermissionSystem() {
         name: 'Full Access',
         description: 'Complete access to all menus (default for sysadmin)',
         isSystemProfile: true,
-        menuKeys: ['home', 'opinions', 'opinion-generator', 'ai-test', 'users', 'permissions', 'user-profile']
+        menuKeys: ['home', 'opinions', 'opinion-generator', 'ai-test', 'user-profile', 'users-management', 'permission-profiles']
       },
       {
         name: 'Regular User',
