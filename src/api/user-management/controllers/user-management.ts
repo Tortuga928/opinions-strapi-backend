@@ -95,7 +95,6 @@ export default {
       // WORKAROUND for Strapi 5 Bug #20330: Manually fetch and attach primaryProfile
       // The populate mechanism is completely broken for primaryProfile relation
       // Solution: Use direct SQL to fetch from link table (production uses link table, not direct column)
-      strapi.log.info(`[PRIMARY PROFILE DEBUG] Processing ${users.length} users`);
       for (const user of users) {
         // Use direct SQL to fetch primary_profile_id from link table
         // Production uses: up_users_primary_profile_lnk (user_id, permission_profile_id)
@@ -106,11 +105,9 @@ export default {
 
         // Extract permission_profile_id from SQL result
         const primaryProfileId = sqlResult && sqlResult[0] && sqlResult[0].permission_profile_id;
-        strapi.log.info(`[PRIMARY PROFILE DEBUG] User ${user.id} (${user.username}) primaryProfileId from link table: ${primaryProfileId}`);
 
         if (primaryProfileId) {
           try {
-            strapi.log.info(`[PRIMARY PROFILE DEBUG] Fetching profile ${primaryProfileId}...`);
             // WORKAROUND: Also use direct SQL to fetch profile name
             // Strapi entityService returns wrong data for permission profiles
             const profileSqlResult = await strapi.db.connection.raw(
@@ -124,18 +121,15 @@ export default {
               description: profileSqlResult[0].description
             } : null;
 
-            strapi.log.info(`[PRIMARY PROFILE DEBUG] Successfully fetched profile via SQL: ${primaryProfile?.name}`);
             user.primaryProfile = primaryProfile;
           } catch (error) {
-            strapi.log.error(`[PRIMARY PROFILE DEBUG] Failed to fetch primaryProfile ${primaryProfileId} for user ${user.id}:`, error);
+            strapi.log.error(`Failed to fetch primaryProfile ${primaryProfileId} for user ${user.id}:`, error);
             user.primaryProfile = null;
           }
         } else {
-          strapi.log.info(`[PRIMARY PROFILE DEBUG] User ${user.id} has no primary profile ID`);
           user.primaryProfile = null;
         }
       }
-      strapi.log.info(`[PRIMARY PROFILE DEBUG] Finished processing all users`);
 
       const total = await strapi.query('plugin::users-permissions.user').count({ where: filters });
 
@@ -855,9 +849,6 @@ export default {
         return ctx.unauthorized('You must be logged in to view menu permissions');
       }
 
-      strapi.log.info(`[MENU PERMISSIONS DEBUG] getUserMenus called for user ${currentUser.id} (${currentUser.username})`);
-      strapi.log.info(`[MENU PERMISSIONS DEBUG] User isSuperAdmin: ${currentUser.isSuperAdmin}, is_super_admin: ${currentUser.is_super_admin}`);
-
       // Call permission-checker service to get user's menus
       const permissionChecker = strapi.service('api::permission-checker.permission-checker');
       if (!permissionChecker) {
@@ -867,8 +858,6 @@ export default {
 
       const menus = await permissionChecker.getUserMenus(currentUser.id);
 
-      strapi.log.info(`[MENU PERMISSIONS DEBUG] Retrieved ${menus.length} menus from permission-checker service`);
-      strapi.log.info(`[MENU PERMISSIONS DEBUG] Menu keys: ${menus.map(m => m.key).join(', ')}`);
       strapi.log.info(`[MENU PERMISSIONS] User ${currentUser.id} (${currentUser.username}) has access to ${menus.length} menus`);
 
       return {

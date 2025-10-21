@@ -1,9 +1,7 @@
 module.exports = {
   init: (providerOptions = {}, settings = {}) => {
-    console.log('[SendGrid Provider] Initializing with settings:', { hasApiKey: !!providerOptions.apiKey, defaultFrom: settings.defaultFrom });
     return {
       send: async options => {
-        console.log('[SendGrid Provider] Attempting to send email to:', options.to);
         const { to, from, subject, text, html } = options;
 
         // Use the from email from settings or fall back to environment variable
@@ -109,7 +107,6 @@ module.exports = {
             throw new Error(`SendGrid API Error: ${response.status}`);
           }
 
-          console.log('[SendGrid Provider] ✅ Email sent successfully to:', to);
           return { success: true };
         } catch (error) {
           console.error('[SendGrid Provider] ❌ Error sending email:', error.message);
