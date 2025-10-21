@@ -55,7 +55,7 @@ export default {
     // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can list users');
     }
 
@@ -164,7 +164,7 @@ export default {
     // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can view user details');
     }
 
@@ -215,7 +215,7 @@ export default {
     // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can update users');
     }
 
@@ -298,7 +298,7 @@ export default {
     // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can delete users');
     }
 
@@ -343,7 +343,7 @@ export default {
     // Validate JWT and populate ctx.state.user
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can reset passwords');
     }
 
@@ -1343,7 +1343,7 @@ export default {
   async toggleSuperAdmin(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can toggle super admin status');
     }
 
@@ -1414,7 +1414,7 @@ export default {
   async canRemoveSuperAdmin(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can check super admin status');
     }
 

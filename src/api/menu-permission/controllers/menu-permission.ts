@@ -107,7 +107,7 @@ export default {
   async findOne(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can view menu permissions');
     }
 
@@ -141,7 +141,7 @@ export default {
   async create(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can create menu permissions');
     }
 
@@ -198,7 +198,7 @@ export default {
   async update(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can update menu permissions');
     }
 
@@ -272,7 +272,7 @@ export default {
   async delete(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can delete menu permissions');
     }
 

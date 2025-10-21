@@ -48,7 +48,7 @@ export default {
   async assignProfile(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can assign profiles');
     }
 
@@ -127,7 +127,7 @@ export default {
   async removeProfile(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can remove profiles');
     }
 
@@ -198,7 +198,7 @@ export default {
   async setPrimaryProfile(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can set primary profile');
     }
 
@@ -317,7 +317,7 @@ export default {
   async addIndividualMenu(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can add individual menu permissions');
     }
 
@@ -402,7 +402,7 @@ export default {
   async removeIndividualMenu(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can remove individual menu permissions');
     }
 
@@ -479,7 +479,7 @@ export default {
   async getIndividualMenus(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can view individual menu permissions');
     }
 

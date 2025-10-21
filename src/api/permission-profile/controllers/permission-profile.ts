@@ -47,7 +47,7 @@ export default {
   async find(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can list permission profiles');
     }
 
@@ -80,7 +80,7 @@ export default {
   async findOne(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can view permission profiles');
     }
 
@@ -117,7 +117,7 @@ export default {
   async create(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can create permission profiles');
     }
 
@@ -166,7 +166,7 @@ export default {
   async update(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can update permission profiles');
     }
 
@@ -218,7 +218,7 @@ export default {
   async delete(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can delete permission profiles');
     }
 
@@ -270,7 +270,7 @@ export default {
   async updateMenus(ctx) {
     const currentUser = await authenticateRequest(ctx);
 
-    if (!currentUser || currentUser.userRole !== 'sysadmin') {
+    if (!currentUser || (currentUser.userRole !== 'sysadmin' && !currentUser.isSuperAdmin)) {
       return ctx.unauthorized('Only sysadmin can update profile menus');
     }
 
