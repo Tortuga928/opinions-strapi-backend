@@ -705,6 +705,120 @@ export interface ApiQuoteDraftQuoteDraft extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiSalesGamePlanSalesGamePlan
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'sales_game_plans';
+  info: {
+    description: 'AI-generated sales meeting preparation game plans';
+    displayName: 'Sales Game Plan';
+    pluralName: 'sales-game-plans';
+    singularName: 'sales-game-plan';
+  };
+  options: {
+    comment: '';
+    draftAndPublish: false;
+  };
+  attributes: {
+    additionalParties: Schema.Attribute.JSON;
+    approvalStatus: Schema.Attribute.Enumeration<
+      ['Pending', 'Approved', 'Rejected', 'Not Submitted']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'Not Submitted'>;
+    assignedManager: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+    companyAnalysis: Schema.Attribute.Text;
+    contactPersona: Schema.Attribute.Text;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    desiredOutcome: Schema.Attribute.Text & Schema.Attribute.Required;
+    discussionPoints: Schema.Attribute.Text;
+    generatedMaterials: Schema.Attribute.JSON;
+    influenceFramework: Schema.Attribute.Text & Schema.Attribute.Required;
+    influenceTactics: Schema.Attribute.Text;
+    linkExpiration: Schema.Attribute.DateTime;
+    linkPassword: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::sales-game-plan.sales-game-plan'
+    > &
+      Schema.Attribute.Private;
+    managerFeedback: Schema.Attribute.Text;
+    meetingDate: Schema.Attribute.DateTime;
+    meetingFeedback: Schema.Attribute.JSON;
+    meetingSubject: Schema.Attribute.Text & Schema.Attribute.Required;
+    objectionHandling: Schema.Attribute.Text;
+    personaDetailLevel: Schema.Attribute.Enumeration<
+      ['Brief', 'Standard', 'Detailed']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'Standard'>;
+    primaryCompanyDomain: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
+    primaryCompanyName: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
+    primaryContactLinkedIn: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
+    primaryContactName: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
+    primaryContactTitle: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
+    publishedAt: Schema.Attribute.DateTime;
+    researchDepth: Schema.Attribute.Enumeration<['Quick', 'Standard', 'Deep']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'Standard'>;
+    selectedMaterials: Schema.Attribute.JSON;
+    shareableLink: Schema.Attribute.String &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 500;
+      }>;
+    status: Schema.Attribute.Enumeration<
+      [
+        'Draft',
+        'Generating',
+        'Ready',
+        'Submitted for Approval',
+        'Approved',
+        'Rejected',
+      ]
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'Draft'>;
+    templateChoice: Schema.Attribute.Enumeration<
+      ['Modern', 'Classic', 'Minimal', 'Corporate', 'Creative']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'Modern'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiStatementStatement extends Struct.CollectionTypeSchema {
   collectionName: 'statements';
   info: {
@@ -1435,6 +1549,7 @@ declare module '@strapi/strapi' {
       'api::opinion.opinion': ApiOpinionOpinion;
       'api::permission-profile.permission-profile': ApiPermissionProfilePermissionProfile;
       'api::quote-draft.quote-draft': ApiQuoteDraftQuoteDraft;
+      'api::sales-game-plan.sales-game-plan': ApiSalesGamePlanSalesGamePlan;
       'api::statement.statement': ApiStatementStatement;
       'api::user-activity-log.user-activity-log': ApiUserActivityLogUserActivityLog;
       'api::user-rating.user-rating': ApiUserRatingUserRating;

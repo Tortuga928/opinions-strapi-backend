@@ -1,0 +1,147 @@
+{
+  "kind": "collectionType",
+  "collectionName": "sales_game_plans",
+  "info": {
+    "singularName": "sales-game-plan",
+    "pluralName": "sales-game-plans",
+    "displayName": "Sales Game Plan",
+    "description": "AI-generated sales meeting preparation game plans"
+  },
+  "options": {
+    "draftAndPublish": false,
+    "comment": ""
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "primaryCompanyName": {
+      "type": "string",
+      "required": true,
+      "maxLength": 255
+    },
+    "primaryCompanyDomain": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "primaryContactName": {
+      "type": "string",
+      "required": true,
+      "maxLength": 255
+    },
+    "primaryContactTitle": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "primaryContactLinkedIn": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "additionalParties": {
+      "type": "json",
+      "description": "Array of additional contacts/companies as references"
+    },
+    "meetingSubject": {
+      "type": "text",
+      "required": true
+    },
+    "desiredOutcome": {
+      "type": "text",
+      "required": true
+    },
+    "meetingDate": {
+      "type": "datetime"
+    },
+    "researchDepth": {
+      "type": "enumeration",
+      "enum": ["Quick", "Standard", "Deep"],
+      "default": "Standard",
+      "required": true
+    },
+    "personaDetailLevel": {
+      "type": "enumeration",
+      "enum": ["Brief", "Standard", "Detailed"],
+      "default": "Standard",
+      "required": true
+    },
+    "influenceFramework": {
+      "type": "text",
+      "required": true
+    },
+    "selectedMaterials": {
+      "type": "json",
+      "description": "Array of material types user selected to generate"
+    },
+    "templateChoice": {
+      "type": "enumeration",
+      "enum": ["Modern", "Classic", "Minimal", "Corporate", "Creative"],
+      "default": "Modern",
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "Draft",
+        "Generating",
+        "Ready",
+        "Submitted for Approval",
+        "Approved",
+        "Rejected"
+      ],
+      "default": "Draft",
+      "required": true
+    },
+    "companyAnalysis": {
+      "type": "text"
+    },
+    "contactPersona": {
+      "type": "text"
+    },
+    "influenceTactics": {
+      "type": "text"
+    },
+    "discussionPoints": {
+      "type": "text"
+    },
+    "objectionHandling": {
+      "type": "text"
+    },
+    "generatedMaterials": {
+      "type": "json",
+      "description": "URLs/paths to generated files (PDFs, emails, etc.)"
+    },
+    "shareableLink": {
+      "type": "string",
+      "maxLength": 500,
+      "unique": true
+    },
+    "linkExpiration": {
+      "type": "datetime"
+    },
+    "linkPassword": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "assignedManager": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "managerFeedback": {
+      "type": "text"
+    },
+    "approvalStatus": {
+      "type": "enumeration",
+      "enum": ["Pending", "Approved", "Rejected", "Not Submitted"],
+      "default": "Not Submitted",
+      "required": true
+    },
+    "meetingFeedback": {
+      "type": "json",
+      "description": "Post-meeting feedback data (effectiveness rating, outcomes, notes)"
+    }
+  }
+}

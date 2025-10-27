@@ -1,0 +1,805 @@
+/**
+ * SalesPilot Conversation Controller
+ *
+ * Manages conversational AI interface for gathering game plan inputs
+ * Supports URL finding via Google Custom Search API
+ */
+
+/**
+ * Helper function to validate JWT token and populate ctx.state.user
+ */
+async function authenticateRequest(ctx) {
+  const authHeader = ctx.request.header.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.replace(/^Bearer\s+/, '');
+
+  try {
+    const jwtService = strapi.plugin('users-permissions').service('jwt');
+    const decoded = await jwtService.verify(token);
+
+    if (!decoded || !decoded.id) {
+      return null;
+    }
+
+    const user = await strapi.query('plugin::users-permissions.user').findOne({
+      where: { id: decoded.id }
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    ctx.state.user = user;
+    return user;
+  } catch (error) {
+    strapi.log.error('JWT validation error:', error);
+    return null;
+  }
+}
+
+export default {
+  /**
+   * POST /api/salespilot/conversation
+   * Process conversation messages for game plan creation
+   */
+  async processMessage(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser) {
+      return ctx.unauthorized('You must be logged in to use SalesPilot AI');
+    }
+
+    const { message, conversationState } = ctx.request.body;
+
+    // Validation
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return ctx.badRequest('Message is required and must be a non-empty string');
+    }
+
+    if (message.length > 4000) {
+      return ctx.badRequest('Message exceeds maximum length of 4000 characters');
+    }
+
+    try {
+      // Call service to process conversation
+      const response = await strapi
+        .service('api::salespilot-conversation.salespilot-conversation')
+        .processConversation(message, conversationState, currentUser.id);
+
+      strapi.log.info(`Conversation processed for user ${currentUser.username}`);
+
+      return { data: response };
+    } catch (error) {
+      strapi.log.error('Error processing conversation:', error);
+
+      if (error.status === 429) {
+        return ctx.tooManyRequests('Rate limit exceeded. Please try again later.');
+      }
+
+      return ctx.internalServerError('Failed to process message. Please try again.');
+    }
+  },
+
+  /**
+   * POST /api/salespilot/find-urls
+   * Use Google Custom Search to find LinkedIn profiles and company websites
+   */
+  async findUrls(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser) {
+      return ctx.unauthorized('You must be logged in to use SalesPilot AI');
+    }
+
+    const { query, searchType } = ctx.request.body;
+
+    // Validation
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return ctx.badRequest('Search query is required');
+    }
+
+    if (!searchType || !['linkedin', 'company'].includes(searchType)) {
+      return ctx.badRequest('Search type must be "linkedin" or "company"');
+    }
+
+    try {
+      // Call service to search for URLs
+      const results = await strapi
+        .service('api::salespilot-conversation.salespilot-conversation')
+        .findUrls(query, searchType, currentUser.id);
+
+      strapi.log.info(`URL search completed for user ${currentUser.username}: ${searchType} - ${query}`);
+
+      return { data: results };
+    } catch (error) {
+      strapi.log.error('Error finding URLs:', error);
+
+      if (error.message?.includes('quota')) {
+        return ctx.tooManyRequests('Search quota exceeded. Please try again later or enter URLs manually.');
+      }
+
+      return ctx.internalServerError('Failed to find URLs. Please try entering them manually.');
+    }
+  },
+
+  /**
+   * POST /api/salespilot/research
+   * Perform web research for company and contact information
+   */
+  async performResearch(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser) {
+      return ctx.unauthorized('You must be logged in to use SalesPilot AI');
+    }
+
+    // Validate request body
+    const {
+      companyName,
+      companyDomain,
+      contactName,
+      contactTitle,
+      contactLinkedIn,
+      industry,
+      researchDepth,
+      additionalParties
+    } = ctx.request.body;
+
+    // Validation
+    if (!companyName && !companyDomain) {
+      return ctx.badRequest('Company name or domain is required');
+    }
+
+    if (!researchDepth || !['Quick', 'Standard', 'Deep'].includes(researchDepth)) {
+      return ctx.badRequest('Research depth must be "Quick", "Standard", or "Deep"');
+    }
+
+    try {
+      // Call web research service
+      const results = await strapi
+        .service('api::salespilot-conversation.salespilot-conversation')
+        .performWebResearch({
+          companyName,
+          companyDomain,
+          contactName,
+          contactTitle,
+          contactLinkedIn,
+          industry,
+          researchDepth,
+          additionalParties
+        }, currentUser.id);
+
+      strapi.log.info(`Research completed for user ${currentUser.username}: ${researchDepth} research on ${companyName || companyDomain}`);
+
+      return { data: results };
+    } catch (error) {
+      strapi.log.error('Error performing research:', error);
+
+      if (error.message?.includes('quota')) {
+        return ctx.tooManyRequests({
+          error: {
+            message: 'Research quota exceeded. Would you like to enter information manually or proceed with limited data?',
+            fallbackAvailable: true
+          }
+        });
+      }
+
+      return ctx.internalServerError({
+        error: {
+          message: 'Research failed. Would you like to enter information manually or proceed with limited data?',
+          fallbackAvailable: true
+        }
+      });
+    }
+  },
+
+  /**
+   * POST /api/salespilot/generate-analysis
+   * Generate complete game plan analysis using AI
+   * Returns analysis ID immediately and runs generation in background
+   */
+  async generateAnalysis(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+
+    if (!currentUser) {
+      return ctx.unauthorized('You must be logged in to use SalesPilot AI');
+    }
+
+    // Validate request body
+    const {
+      companyName,
+      contactName,
+      contactTitle,
+      industry,
+      meetingSubject,
+      desiredOutcome,
+      personaDetailLevel,
+      influenceFramework,
+      researchData
+    } = ctx.request.body;
+
+    // Validation
+    if (!companyName || !contactName) {
+      return ctx.badRequest('Company name and contact name are required');
+    }
+
+    if (!personaDetailLevel || !['Brief', 'Standard', 'Detailed'].includes(personaDetailLevel)) {
+      return ctx.badRequest('Persona detail level must be "Brief", "Standard", or "Detailed"');
+    }
+
+    if (!influenceFramework || !['Hybrid', 'Cialdini', 'SPIN', 'Challenger', 'Sandler'].includes(influenceFramework)) {
+      return ctx.badRequest('Influence framework must be "Hybrid", "Cialdini", "SPIN", "Challenger", or "Sandler"');
+    }
+
+    try {
+      // Import progress tracker
+      const { progressTracker } = await import('../services/game-plan-generator');
+
+      // Generate unique analysis ID
+      const analysisId = progressTracker.generateAnalysisId();
+
+      // Initialize progress tracking
+      progressTracker.initializeProgress(analysisId);
+
+      strapi.log.info(`[AnalysisGeneration] Started with ID: ${analysisId} for user ${currentUser.username}`);
+
+      // Return analysis ID immediately (non-blocking)
+      ctx.send({
+        success: true,
+        data: {
+          analysisId,
+          message: 'Analysis generation started. Use the analysis ID to track progress via SSE or polling endpoints.'
+        }
+      });
+
+      // Run analysis generation in background (don't await)
+      // This allows the response to return immediately while generation continues
+      strapi
+        .service('api::salespilot-conversation.salespilot-conversation')
+        .generateGamePlanAnalysis({
+          companyName,
+          contactName,
+          contactTitle,
+          industry,
+          meetingSubject,
+          desiredOutcome,
+          personaDetailLevel,
+          influenceFramework,
+          researchData
+        }, currentUser.id, analysisId)
+        .then((analysis) => {
+          strapi.log.info(`[AnalysisGeneration] Completed for ${analysisId}: ${companyName} / ${contactName}`);
+          // Result is already stored in progressTracker by the service
+        })
+        .catch((error) => {
+          strapi.log.error(`[AnalysisGeneration] Failed for ${analysisId}:`, error);
+          // Error is already handled by progressTracker in the service
+        });
+
+    } catch (error) {
+      strapi.log.error('Error starting analysis:', error);
+
+      return ctx.internalServerError({
+        error: {
+          message: 'Failed to start analysis generation. Please try again.',
+          retryAvailable: true
+        }
+      });
+    }
+  },
+
+  /**
+   * Stream analysis progress using Server-Sent Events (SSE)
+   * GET /api/salespilot/analysis-progress/:analysisId
+   */
+  async streamAnalysisProgress(ctx) {
+    const { analysisId } = ctx.params;
+
+    try {
+      // Validate authentication - check both header and query param
+      // Query param is needed because EventSource doesn't support custom headers
+      let token = ctx.request.headers['authorization']?.split(' ')[1];
+
+      // Fallback to query parameter for EventSource compatibility
+      if (!token) {
+        token = ctx.query.token;
+      }
+
+      if (!token) {
+        strapi.log.warn('[SSE] No auth token provided');
+        ctx.status = 401;
+        ctx.body = { error: { message: 'Authentication required' } };
+        return;
+      }
+
+      // Verify token and get user
+      let currentUser;
+      try {
+        const { id } = await strapi.plugins['users-permissions'].services.jwt.verify(token);
+        currentUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { id }
+        });
+
+        if (!currentUser) {
+          throw new Error('User not found');
+        }
+      } catch (error) {
+        strapi.log.warn('[SSE] Invalid auth token');
+        ctx.status = 401;
+        ctx.body = { error: { message: 'Invalid authentication token' } };
+        return;
+      }
+
+      strapi.log.info(`[SSE] User ${currentUser.username} connecting to analysis: ${analysisId}`);
+
+      // Import progress tracker
+      const { progressTracker } = await import('../services/game-plan-generator');
+
+      // Check if analysis exists
+      if (!progressTracker.exists(analysisId)) {
+        strapi.log.warn(`[SSE] Analysis not found: ${analysisId}`);
+        ctx.status = 404;
+        ctx.body = { error: { message: 'Analysis not found' } };
+        return;
+      }
+
+      // Set SSE headers
+      ctx.request.socket.setTimeout(0);
+      ctx.request.socket.setNoDelay(true);
+      ctx.request.socket.setKeepAlive(true);
+
+      ctx.set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'  // Disable Nginx buffering
+      });
+
+      ctx.status = 200;
+
+      strapi.log.info(`[SSE] Starting event stream for analysis: ${analysisId}`);
+
+      // Send initial connection event
+      ctx.res.write('event: connected\n');
+      ctx.res.write(`data: ${JSON.stringify({ message: 'Connected to progress stream' })}\n\n`);
+
+      // Return a Promise that keeps the connection alive until stream closes
+      // This prevents Koa from auto-closing the response when the function ends
+      return new Promise<void>((resolve) => {
+        // Create polling interval to check progress
+        const pollInterval = setInterval(() => {
+          try {
+            const progress = progressTracker.getProgress(analysisId);
+
+            if (!progress) {
+              // Analysis not found (might have been cleaned up)
+              strapi.log.info(`[SSE] Analysis ${analysisId} no longer exists, closing stream`);
+              ctx.res.write('event: error\n');
+              ctx.res.write(`data: ${JSON.stringify({ message: 'Analysis not found' })}\n\n`);
+              clearInterval(pollInterval);
+              ctx.res.end();
+              resolve(); // Resolve promise to end Koa handler
+              return;
+            }
+
+            // Send progress update
+            ctx.res.write('event: progress\n');
+            ctx.res.write(`data: ${JSON.stringify({
+              stage: progress.stage,
+              percentage: progress.percentage,
+              status: progress.status
+            })}\n\n`);
+
+            // If completed or error, send final event and close
+            if (progress.status === 'completed') {
+              strapi.log.info(`[SSE] Analysis ${analysisId} completed, sending complete event`);
+              ctx.res.write('event: complete\n');
+              ctx.res.write(`data: ${JSON.stringify({
+                stage: progress.stage,
+                percentage: 100,
+                result: progress.result
+              })}\n\n`);
+              clearInterval(pollInterval);
+              ctx.res.end();
+              resolve(); // Resolve promise to end Koa handler
+            } else if (progress.status === 'error') {
+              strapi.log.error(`[SSE] Analysis ${analysisId} failed: ${progress.error}`);
+              ctx.res.write('event: error\n');
+              ctx.res.write(`data: ${JSON.stringify({
+                message: progress.error || 'Analysis generation failed'
+              })}\n\n`);
+              clearInterval(pollInterval);
+              ctx.res.end();
+              resolve(); // Resolve promise to end Koa handler
+            }
+          } catch (error) {
+            strapi.log.error('[SSE] Error in polling interval:', error);
+            clearInterval(pollInterval);
+            ctx.res.end();
+            resolve(); // Resolve promise to end Koa handler
+          }
+        }, 500); // Poll every 500ms for updates
+
+        // Handle client disconnect
+        ctx.req.on('close', () => {
+          strapi.log.info(`[SSE] Client disconnected from analysis: ${analysisId}`);
+          clearInterval(pollInterval);
+          resolve(); // Resolve promise to end Koa handler
+        });
+
+        ctx.req.on('error', (err) => {
+          strapi.log.error(`[SSE] Connection error for analysis ${analysisId}:`, err);
+          clearInterval(pollInterval);
+          resolve(); // Resolve promise to end Koa handler
+        });
+      });
+
+    } catch (error) {
+      strapi.log.error('[SSE] Stream setup error:', error);
+      ctx.status = 500;
+      ctx.body = { error: { message: 'Failed to setup progress stream' } };
+    }
+  },
+
+  /**
+   * Get analysis status via polling (fallback for SSE)
+   * GET /api/salespilot/analysis-status/:analysisId
+   */
+  async getAnalysisStatus(ctx) {
+    const { analysisId } = ctx.params;
+
+    try {
+      // Validate authentication
+      const token = ctx.request.headers['authorization']?.split(' ')[1];
+
+      if (!token) {
+        strapi.log.warn('[Polling] No auth token provided');
+        return ctx.unauthorized({
+          error: { message: 'Authentication required' }
+        });
+      }
+
+      // Verify token and get user
+      let currentUser;
+      try {
+        const { id } = await strapi.plugins['users-permissions'].services.jwt.verify(token);
+        currentUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { id }
+        });
+
+        if (!currentUser) {
+          throw new Error('User not found');
+        }
+      } catch (error) {
+        strapi.log.warn('[Polling] Invalid auth token');
+        return ctx.unauthorized({
+          error: { message: 'Invalid authentication token' }
+        });
+      }
+
+      strapi.log.info(`[Polling] User ${currentUser.username} checking status: ${analysisId}`);
+
+      // Import progress tracker
+      const { progressTracker } = await import('../services/game-plan-generator');
+
+      // Get progress data
+      const progress = progressTracker.getProgress(analysisId);
+
+      if (!progress) {
+        strapi.log.warn(`[Polling] Analysis not found: ${analysisId}`);
+        return ctx.notFound({
+          error: { message: 'Analysis not found or expired' }
+        });
+      }
+
+      // Return progress data in same format as SSE events
+      return ctx.send({
+        success: true,
+        data: {
+          stage: progress.stage,
+          percentage: progress.percentage,
+          status: progress.status,
+          error: progress.error,
+          complete: progress.status === 'completed',
+          result: progress.status === 'completed' ? progress.result : undefined
+        },
+        timestamp: progress.updatedAt
+      });
+
+    } catch (error) {
+      strapi.log.error('[Polling] Status check error:', error);
+      return ctx.internalServerError({
+        error: { message: 'Failed to retrieve analysis status' }
+      });
+    }
+  },
+
+  /**
+   * Generate Materials
+   * POST /api/salespilot/generate-materials
+   *
+   * Generates selected materials (emails, agenda PDF, presentation PDF) from a game plan
+   */
+  async generateMaterials(ctx) {
+    try {
+      // Validate authentication
+      const token = ctx.request.headers['authorization']?.split(' ')[1];
+
+      if (!token) {
+        strapi.log.warn('[Materials] No auth token provided');
+        return ctx.unauthorized({
+          error: { message: 'Authentication required' }
+        });
+      }
+
+      // Verify token and get user
+      let currentUser;
+      try {
+        const { id } = await strapi.plugins['users-permissions'].services.jwt.verify(token);
+        currentUser = await strapi.query('plugin::users-permissions.user').findOne({
+          where: { id }
+        });
+
+        if (!currentUser) {
+          throw new Error('User not found');
+        }
+      } catch (error) {
+        strapi.log.warn('[Materials] Invalid auth token');
+        return ctx.unauthorized({
+          error: { message: 'Invalid authentication token' }
+        });
+      }
+
+      // Extract parameters
+      const { gamePlanId, materials, template } = ctx.request.body;
+
+      if (!gamePlanId || !materials || !Array.isArray(materials)) {
+        return ctx.badRequest({
+          error: { message: 'gamePlanId and materials array are required' }
+        });
+      }
+
+      strapi.log.info(`[Materials] User ${currentUser.username} generating materials for game plan ${gamePlanId}`);
+      strapi.log.info(`[Materials] Requested materials: ${materials.join(', ')}`);
+      strapi.log.info(`[Materials] Template: ${template || 'modern'}`);
+
+      // Fetch game plan with user relation populated
+      const gamePlan = await strapi.db.query('api::sales-game-plan.sales-game-plan').findOne({
+        where: { documentId: gamePlanId },
+        populate: ['user']
+      });
+
+      if (!gamePlan) {
+        strapi.log.warn(`[Materials] Game plan not found: ${gamePlanId}`);
+        return ctx.notFound({
+          error: { message: 'Game plan not found' }
+        });
+      }
+
+      // Verify ownership (check the user relation)
+      const gamePlanUserId = gamePlan.user?.id || gamePlan.user;
+      if (gamePlanUserId !== currentUser.id) {
+        strapi.log.warn(`[Materials] User ${currentUser.username} (ID: ${currentUser.id}) attempted to access game plan ${gamePlanId} owned by user ${gamePlanUserId}`);
+        return ctx.forbidden({
+          error: { message: 'You do not have permission to access this game plan' }
+        });
+      }
+
+      // Import services
+      const materialGenerator = await import('../services/material-generator');
+      const pdfGenerator = await import('../services/pdf-generator');
+
+      const generatedMaterials: any = {};
+
+      // Generate pre-meeting email
+      if (materials.includes('preMeetingEmail')) {
+        strapi.log.info(`[Materials] Generating pre-meeting email...`);
+        const email = await materialGenerator.generatePreMeetingEmail(gamePlan);
+        generatedMaterials.preMeetingEmail = email;
+        strapi.log.info(`[Materials] Pre-meeting email generated (${email.body.length} chars)`);
+      }
+
+      // Generate post-meeting email
+      if (materials.includes('postMeetingEmail')) {
+        strapi.log.info(`[Materials] Generating post-meeting email...`);
+        const email = await materialGenerator.generatePostMeetingEmail(gamePlan);
+        generatedMaterials.postMeetingEmail = email;
+        strapi.log.info(`[Materials] Post-meeting email generated (${email.body.length} chars)`);
+      }
+
+      // Generate agenda PDF
+      if (materials.includes('agenda')) {
+        strapi.log.info(`[Materials] Generating agenda PDF with template ${template || 'modern'}...`);
+        const pdf = await pdfGenerator.generateAgendaPDF(gamePlan, template || 'modern');
+        generatedMaterials.agenda = pdf;
+        strapi.log.info(`[Materials] Agenda PDF generated: ${pdf.filename}`);
+      }
+
+      // Generate presentation PDF
+      if (materials.includes('presentation')) {
+        strapi.log.info(`[Materials] Generating presentation PDF with template ${template || 'modern'}...`);
+        const pdf = await pdfGenerator.generatePresentationPDF(gamePlan, template || 'modern');
+        generatedMaterials.presentation = pdf;
+        strapi.log.info(`[Materials] Presentation PDF generated: ${pdf.filename}`);
+      }
+
+      // Update game plan with generated materials
+      const updatedGamePlan = await strapi.db.query('api::sales-game-plan.sales-game-plan').update({
+        where: { documentId: gamePlanId },
+        data: {
+          generatedMaterials: generatedMaterials
+        }
+      });
+
+      strapi.log.info(`[Materials] Game plan ${gamePlanId} updated with generated materials`);
+
+      return ctx.send({
+        success: true,
+        materials: generatedMaterials
+      });
+
+    } catch (error) {
+      strapi.log.error('[Materials] Generation error:', error);
+      return ctx.internalServerError({
+        error: {
+          message: 'Failed to generate materials',
+          details: error.message
+        }
+      });
+    }
+  },
+
+  /**
+   * POST /api/salespilot/improve-content
+   * Request AI-powered content improvement for a game plan section
+   */
+  async improveContent(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+    if (!currentUser) {
+      return ctx.unauthorized('Authentication required');
+    }
+
+    const { gamePlanId, section, improvementRequest } = ctx.request.body;
+
+    if (!gamePlanId || !section || !improvementRequest) {
+      return ctx.badRequest('Missing required fields: gamePlanId, section, improvementRequest');
+    }
+
+    try {
+      const contentImprover = require('../services/content-improver');
+
+      // Validate section name
+      if (!contentImprover.isValidSection(section)) {
+        return ctx.badRequest(`Invalid section name. Must be one of: companyAnalysis, contactPersona, influenceTactics, discussionPoints, objectionHandling`);
+      }
+
+      // Fetch game plan
+      const gamePlan = await strapi.documents('api::sales-game-plan.sales-game-plan').findOne({
+        documentId: gamePlanId,
+        populate: ['user']
+      });
+
+      if (!gamePlan) {
+        return ctx.notFound('Game plan not found');
+      }
+
+      // Verify ownership
+      if (gamePlan.user?.id !== currentUser.id) {
+        return ctx.forbidden('You do not have permission to modify this game plan');
+      }
+
+      // Get current content from the specified section
+      const currentContent = gamePlan[section];
+      if (!currentContent) {
+        return ctx.badRequest(`Section '${section}' has no content to improve`);
+      }
+
+      // Prepare context for improvement
+      const gamePlanContext = {
+        companyName: gamePlan.primaryCompanyName,
+        contactName: gamePlan.primaryContactName,
+        meetingSubject: gamePlan.meetingSubject
+      };
+
+      // Generate improvement
+      strapi.log.info(`[Content Improvement] User ${currentUser.id} requesting improvement for section '${section}' on game plan ${gamePlanId}`);
+
+      const improvement = await contentImprover.improveContent({
+        section,
+        currentContent,
+        improvementRequest,
+        gamePlanContext
+      });
+
+      return ctx.send({
+        success: true,
+        improvement: {
+          section,
+          original: improvement.original,
+          improved: improvement.improved,
+          changes: improvement.changes,
+          rationale: improvement.rationale
+        }
+      });
+
+    } catch (error) {
+      strapi.log.error('[Content Improvement] Error:', error);
+      return ctx.internalServerError({
+        error: {
+          message: 'Failed to improve content',
+          details: error.message
+        }
+      });
+    }
+  },
+
+  /**
+   * POST /api/salespilot/apply-improvement
+   * Apply approved content improvement to game plan
+   */
+  async applyImprovement(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+    if (!currentUser) {
+      return ctx.unauthorized('Authentication required');
+    }
+
+    const { gamePlanId, section, improvedContent } = ctx.request.body;
+
+    if (!gamePlanId || !section || !improvedContent) {
+      return ctx.badRequest('Missing required fields: gamePlanId, section, improvedContent');
+    }
+
+    try {
+      const contentImprover = require('../services/content-improver');
+
+      // Validate section name
+      if (!contentImprover.isValidSection(section)) {
+        return ctx.badRequest(`Invalid section name`);
+      }
+
+      // Fetch game plan
+      const gamePlan = await strapi.documents('api::sales-game-plan.sales-game-plan').findOne({
+        documentId: gamePlanId,
+        populate: ['user']
+      });
+
+      if (!gamePlan) {
+        return ctx.notFound('Game plan not found');
+      }
+
+      // Verify ownership
+      if (gamePlan.user?.id !== currentUser.id) {
+        return ctx.forbidden('You do not have permission to modify this game plan');
+      }
+
+      // Update the section content
+      const updatedGamePlan = await strapi.documents('api::sales-game-plan.sales-game-plan').update({
+        documentId: gamePlanId,
+        data: {
+          [section]: improvedContent
+        }
+      });
+
+      strapi.log.info(`[Content Improvement] Applied improvement to section '${section}' on game plan ${gamePlanId}`);
+
+      return ctx.send({
+        success: true,
+        message: 'Improvement applied successfully',
+        gamePlan: updatedGamePlan
+      });
+
+    } catch (error) {
+      strapi.log.error('[Content Improvement] Apply error:', error);
+      return ctx.internalServerError({
+        error: {
+          message: 'Failed to apply improvement',
+          details: error.message
+        }
+      });
+    }
+  }
+};

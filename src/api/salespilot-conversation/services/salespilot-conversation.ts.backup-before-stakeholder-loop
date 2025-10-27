@@ -1,0 +1,500 @@
+/**
+ * SalesPilot Conversation Service
+ *
+ * Manages conversation flow for gathering game plan inputs
+ * Uses structured step-based state machine with Claude API for natural responses
+ * Integrates Google Custom Search for URL finding
+ */
+
+import Anthropic from '@anthropic-ai/sdk';
+
+/**
+ * Step Configuration - Defines conversation flow structure
+ */
+const STEP_CONFIG = [
+  {
+    step: 'primary_company_name',
+    question: 'Welcome! I\'ll help you create a personalized sales meeting game plan. Let\'s start with the basics - what\'s the name of the company you\'ll be meeting with?',
+    field: 'primary_company_name',
+    required: true,
+    hasButtons: false
+  },
+  {
+    step: 'primary_contact_name',
+    question: 'Great! Who\'s the primary contact you\'ll be meeting with? (Name)',
+    field: 'primary_contact_name',
+    required: true,
+    hasButtons: false
+  },
+  {
+    step: 'meeting_subject',
+    question: 'Perfect! What\'s the primary subject or purpose of your upcoming meeting?',
+    field: 'meeting_subject',
+    required: true,
+    hasButtons: true,
+    options: [
+      'Product Demo',
+      'Discovery Call',
+      'Proposal Presentation',
+      'Follow-up Meeting',
+      'Contract Negotiation',
+      'Solution Review',
+      'Renewal Discussion',
+      'Expansion Opportunity',
+      'Problem Resolution',
+      'Executive Briefing'
+    ]
+  },
+  {
+    step: 'primary_company_domain',
+    question: 'Do you have the company\'s website domain? (You can type it or skip this)',
+    field: 'primary_company_domain',
+    required: false,
+    hasButtons: false
+  },
+  {
+    step: 'primary_contact_title',
+    question: 'What\'s their title or role? (Optional - you can skip this)',
+    field: 'primary_contact_title',
+    required: false,
+    hasButtons: false
+  },
+  {
+    step: 'primary_contact_linkedin',
+    question: 'Do you have their LinkedIn profile URL? (Optional - you can skip this)',
+    field: 'primary_contact_linkedin',
+    required: false,
+    hasButtons: false
+  },
+  {
+    step: 'desired_outcome',
+    question: 'What\'s your primary desired outcome for this meeting?',
+    field: 'desired_outcome',
+    required: true,
+    hasButtons: true,
+    options: [
+      'Schedule Follow-up',
+      'Close Deal',
+      'Get Budget Approval',
+      'Identify Decision Makers',
+      'Understand Pain Points',
+      'Expand Relationship',
+      'Secure Next Steps',
+      'Get Technical Buy-in'
+    ]
+  },
+  {
+    step: 'research_depth',
+    question: 'How much research would you like me to perform on this company and contact?',
+    field: 'research_depth',
+    required: true,
+    hasButtons: true,
+    options: ['Quick', 'Standard', 'Deep']
+  },
+  {
+    step: 'persona_detail_level',
+    question: 'How detailed should the persona analysis be?',
+    field: 'persona_detail_level',
+    required: true,
+    hasButtons: true,
+    options: ['Brief', 'Standard', 'Detailed']
+  },
+  {
+    step: 'influence_framework',
+    question: 'Which influence framework would you like me to use for recommendations?',
+    field: 'influence_framework',
+    required: true,
+    hasButtons: true,
+    options: ['Hybrid', 'Cialdini', 'SPIN', 'Challenger', 'Sandler']
+  },
+  {
+    step: 'materials_selection',
+    question: 'Which materials would you like me to generate? (You can select multiple)',
+    field: 'selected_materials',
+    required: true,
+    hasButtons: true,
+    multiSelect: true,
+    options: ['Meeting Agenda', 'Presentation Deck', 'Email Template', 'Follow-up Email']
+  },
+  {
+    step: 'template_selection',
+    question: 'What template style would you prefer for the materials?',
+    field: 'template_choice',
+    required: true,
+    hasButtons: true,
+    options: ['Modern', 'Classic', 'Minimal', 'Corporate', 'Creative']
+  },
+  {
+    step: 'additional_stakeholders',
+    question: 'Are there any additional stakeholders or attendees I should know about? (You can list multiple or skip)',
+    field: 'additional_stakeholders',
+    required: false,
+    hasButtons: true,
+    multiSelect: true,
+    options: ['Technical Contact', 'Budget Authority', 'Executive Sponsor', 'End User', 'None']
+  },
+  {
+    step: 'complete',
+    question: 'Perfect! I have all the information I need. I\'ll now create your personalized sales meeting game plan.',
+    field: null,
+    required: false,
+    hasButtons: false
+  }
+];
+
+const CONVERSATION_SYSTEM_PROMPT = `You are an AI assistant helping users create sales meeting game plans.
+
+Your role is to acknowledge user inputs and provide brief, encouraging responses (1-2 sentences max).
+
+Guidelines:
+- Be warm and professional
+- Acknowledge what the user provided
+- Don't ask follow-up questions (the system handles progression)
+- Keep responses under 2 sentences
+- Use encouraging language
+
+Examples:
+User: "I want to discuss their software needs"
+Response: "Excellent! Understanding their software needs is a great meeting focus."
+
+User: "Acme Corporation"
+Response: "Got it! I'll research Acme Corporation for you."
+
+User: "Quick"
+Response: "Perfect! I'll do a quick research sweep to get you the essentials."`;
+
+export default () => ({
+  /**
+   * Get step configuration by step name
+   */
+  getStepConfig(stepName: string) {
+    return STEP_CONFIG.find(s => s.step === stepName);
+  },
+
+  /**
+   * Get next step in conversation flow
+   */
+  getNextStep(currentStep: string, userInput: string, collectedData: any) {
+    const currentIndex = STEP_CONFIG.findIndex(s => s.step === currentStep);
+
+    if (currentIndex === -1) {
+      return STEP_CONFIG[0]; // Start from beginning if invalid step
+    }
+
+    const currentConfig = STEP_CONFIG[currentIndex];
+
+    // Check if user wants to skip optional field
+    const skipIndicators = ['skip', 'none', 'n/a', 'pass', 'no'];
+    const isSkipping = !currentConfig.required &&
+      skipIndicators.some(indicator =>
+        userInput.toLowerCase().includes(indicator)
+      );
+
+    if (isSkipping) {
+      // Skip to next step
+      return STEP_CONFIG[currentIndex + 1] || STEP_CONFIG[currentIndex];
+    }
+
+    // For multi-select fields, check if user provided values
+    if (currentConfig.multiSelect) {
+      // User provided some values, move to next step
+      if (userInput.trim().length > 0) {
+        return STEP_CONFIG[currentIndex + 1] || STEP_CONFIG[currentIndex];
+      }
+    }
+
+    // Move to next step
+    return STEP_CONFIG[currentIndex + 1] || STEP_CONFIG[currentIndex];
+  },
+
+  /**
+   * Process user input and extract value(s)
+   */
+  processUserInput(userInput: string, stepConfig: any) {
+    const trimmedInput = userInput.trim();
+
+    // Handle multi-select (bullet list format)
+    if (stepConfig.multiSelect) {
+      // Check if input is in bullet list format
+      if (trimmedInput.includes('•') || trimmedInput.includes('\n')) {
+        const values = trimmedInput
+          .split('\n')
+          .map(line => line.replace(/^[•\-\*]\s*/, '').trim())
+          .filter(line => line.length > 0);
+        return values;
+      }
+      // Single value for multi-select
+      return [trimmedInput];
+    }
+
+    // Single select
+    return trimmedInput;
+  },
+
+  /**
+   * Process conversation and manage state
+   */
+  async processConversation(message: string, conversationState: any, userId: number) {
+    try {
+      strapi.log.info(`Processing conversation for user ${userId}`);
+
+      // Initialize conversation state if not provided
+      const state = conversationState || {
+        step: 'primary_company_name',
+        collectedData: {},
+        messageHistory: []
+      };
+
+      // Get current step configuration
+      const currentStepConfig = this.getStepConfig(state.step);
+
+      if (!currentStepConfig) {
+        throw new Error(`Invalid step: ${state.step}`);
+      }
+
+      // Special case: first step (first message from user)
+      if (state.step === 'primary_company_name' && state.messageHistory.length === 0) {
+        // Just send welcome message, don't process user input yet
+        const welcomeResponse = currentStepConfig.question;
+
+        state.messageHistory.push({
+          role: 'assistant',
+          content: welcomeResponse,
+          timestamp: new Date().toISOString()
+        });
+
+        return {
+          message: welcomeResponse,
+          conversationState: state,
+          progress: 0,
+          complete: false,
+          collectedData: state.collectedData
+        };
+      }
+
+      // Add user message to history
+      state.messageHistory.push({
+        role: 'user',
+        content: message,
+        timestamp: new Date().toISOString()
+      });
+
+      // Process and store user input (no validation - buttons are just convenience)
+      if (currentStepConfig.field) {
+        const processedValue = this.processUserInput(message, currentStepConfig);
+        state.collectedData[currentStepConfig.field] = processedValue;
+      }
+
+      // Get next step
+      const nextStepConfig = this.getNextStep(state.step, message, state.collectedData);
+      const isComplete = nextStepConfig.step === 'complete';
+
+      // Generate AI acknowledgment using Claude
+      let acknowledgment;
+      try {
+        const anthropic = new Anthropic({
+          apiKey: process.env.ANTHROPIC_API_KEY
+        });
+
+        const completion = await anthropic.messages.create({
+          model: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet-20250219',
+          max_tokens: 150,
+          system: CONVERSATION_SYSTEM_PROMPT,
+          messages: [
+            {
+              role: 'user',
+              content: `User provided: "${message}"\nAcknowledge this briefly and encouragingly (1-2 sentences max).`
+            }
+          ]
+        });
+
+        acknowledgment = completion.content[0].type === 'text'
+          ? completion.content[0].text
+          : 'Got it!';
+
+      } catch (aiError) {
+        strapi.log.warn('Claude API error, using fallback acknowledgment:', aiError.message);
+        acknowledgment = 'Got it!';
+      }
+
+      // Build response message: acknowledgment + next question
+      const responseMessage = isComplete
+        ? nextStepConfig.question
+        : `${acknowledgment}\n\n${nextStepConfig.question}`;
+
+      // Update conversation state
+      state.messageHistory.push({
+        role: 'assistant',
+        content: responseMessage,
+        timestamp: new Date().toISOString()
+      });
+
+      // Update step to next step
+      state.step = nextStepConfig.step;
+
+      // Calculate progress
+      const progress = this.calculateProgress(state.collectedData);
+
+      // Return response with updated state
+      return {
+        message: responseMessage,
+        conversationState: state,
+        progress,
+        complete: isComplete,
+        collectedData: state.collectedData
+      };
+
+    } catch (error) {
+      strapi.log.error('Conversation processing error:', {
+        message: error.message,
+        userId
+      });
+      throw error;
+    }
+  },
+
+  /**
+   * Find URLs using Google Custom Search API
+   */
+  async findUrls(query: string, searchType: 'linkedin' | 'company', userId: number) {
+    try {
+      strapi.log.info(`Finding URLs for user ${userId}: ${searchType} - ${query}`);
+
+      // Check if Google Custom Search is configured
+      if (!process.env.GOOGLE_SEARCH_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
+        throw new Error('Google Custom Search is not configured');
+      }
+
+      // Build search query based on type
+      const searchQuery = searchType === 'linkedin'
+        ? `site:linkedin.com/in ${query}`
+        : `${query} company website`;
+
+      // Call Google Custom Search API
+      const response = await fetch(
+        `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(searchQuery)}&num=5`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        strapi.log.error('Google Search API error:', errorText);
+        throw new Error('Search API request failed');
+      }
+
+      const data = await response.json() as any;
+
+      // Extract and format results
+      const results = (data.items || []).map((item: any) => ({
+        title: item.title,
+        url: item.link,
+        snippet: item.snippet
+      }));
+
+      strapi.log.info(`Found ${results.length} results for ${searchType} search: ${query}`);
+
+      return {
+        query,
+        searchType,
+        results,
+        count: results.length
+      };
+
+    } catch (error) {
+      strapi.log.error('URL finding error:', {
+        message: error.message,
+        userId,
+        query,
+        searchType
+      });
+      throw error;
+    }
+  },
+
+  /**
+   * Build conversation context from state
+   */
+  buildConversationContext(state: any): string {
+    const context = [];
+
+    // Add current step
+    context.push(`Current step: ${state.step}`);
+
+    // Add collected data
+    if (Object.keys(state.collectedData).length > 0) {
+      context.push(`\nCollected data so far:`);
+      for (const [key, value] of Object.entries(state.collectedData)) {
+        context.push(`- ${key}: ${value}`);
+      }
+    }
+
+    // Add recent message history (last 5 messages)
+    const recentMessages = state.messageHistory.slice(-5);
+    if (recentMessages.length > 0) {
+      context.push(`\nRecent conversation:`);
+      for (const msg of recentMessages) {
+        context.push(`${msg.role}: ${msg.content}`);
+      }
+    }
+
+    return context.join('\n');
+  },
+
+  /**
+   * Calculate progress percentage based on collected data
+   */
+  calculateProgress(collectedData: any): number {
+    const requiredFields = [
+      'meeting_subject',
+      'primary_company_name',
+      'primary_contact_name',
+      'desired_outcome',
+      'research_depth',
+      'persona_detail_level',
+      'influence_framework',
+      'selected_materials',
+      'template_choice'
+    ];
+
+    const collectedCount = requiredFields.filter(
+      field => collectedData[field] !== undefined && collectedData[field] !== null
+    ).length;
+
+    return Math.round((collectedCount / requiredFields.length) * 100);
+  },
+
+  /**
+   * Perform web research using web-research-service
+   */
+  async performWebResearch(params: any, userId: number) {
+    try {
+      strapi.log.info(`Starting web research for user ${userId}: ${params.researchDepth} on ${params.companyName || params.companyDomain}`);
+
+      // Import web research service
+      const webResearchService = require('../../../services/web-research-service').default;
+
+      // Check if service is available
+      if (!webResearchService.isAvailable()) {
+        throw new Error('Web research service is not configured. Please configure Google Custom Search API.');
+      }
+
+      // Perform research
+      const results = await webResearchService.performResearch(params);
+
+      strapi.log.info(`Research completed for user ${userId}: ${results.queryCount} queries executed`);
+
+      return {
+        ...results,
+        researchDepth: params.researchDepth,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      strapi.log.error('Web research error:', {
+        message: error.message,
+        userId,
+        params
+      });
+      throw error;
+    }
+  }
+});
