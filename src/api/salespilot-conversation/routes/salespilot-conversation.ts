@@ -119,6 +119,22 @@ export default {
       config: {
         auth: false  // Auth handled in controller
       }
+    },
+    {
+      method: 'POST',
+      path: '/salespilot/regenerate-section',
+      handler: 'salespilot-conversation.regenerateSection',
+      config: {
+        auth: false  // Auth handled in controller
+      }
+    },
+    {
+      method: 'POST',
+      path: '/salespilot/delete-section',
+      handler: 'salespilot-conversation.deleteSection',
+      config: {
+        auth: false  // Auth handled in controller
+      }
     }
   ]
 };

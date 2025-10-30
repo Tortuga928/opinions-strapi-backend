@@ -219,7 +219,14 @@ export default {
       desiredOutcome,
       personaDetailLevel,
       influenceFramework,
-      researchData
+      researchData, // Optional - if not provided, backend will perform research internally
+      researchDepth, // Optional - for internal research ('Quick', 'Standard', 'Deep')
+      companyDomain, // Optional - for internal research
+      contactLinkedIn, // Optional - for internal research
+      additionalParties, // Optional - for internal research
+      globalStartTime,
+      selectedMaterials,
+      templateChoice
     } = ctx.request.body;
 
     // Validation
@@ -269,11 +276,84 @@ export default {
           desiredOutcome,
           personaDetailLevel,
           influenceFramework,
-          researchData
+          researchData, // Optional - backend will perform research if not provided
+          researchDepth, // For internal research
+          companyDomain, // For internal research
+          contactLinkedIn, // For internal research
+          additionalParties, // For internal research
+          globalStartTime,
+          selectedMaterials,
+          templateChoice
         }, currentUser.id, analysisId)
-        .then((analysis) => {
-          strapi.log.info(`[AnalysisGeneration] Completed for ${analysisId}: ${companyName} / ${contactName}`);
-          // Result is already stored in progressTracker by the service
+        .then(async (analysis) => {
+          try {
+            strapi.log.info(`[AnalysisGeneration] Completed for ${analysisId}: ${companyName} / ${contactName}`);
+            strapi.log.info(`[AnalysisGeneration] Saving game plan to database...`);
+
+            // Save the game plan to the database
+            const gamePlan = await strapi.entityService.create('api::sales-game-plan.sales-game-plan', {
+              data: {
+                // User relation
+                user: currentUser.id,
+
+                // Company and contact info
+                primaryCompanyName: companyName,
+                primaryCompanyDomain: companyDomain || null,
+                primaryContactName: contactName,
+                primaryContactTitle: contactTitle || null,
+                primaryContactLinkedIn: contactLinkedIn || null,
+                additionalParties: additionalParties || null,
+
+                // Meeting details
+                meetingSubject: meetingSubject,
+                desiredOutcome: desiredOutcome,
+                meetingDate: null, // User can set this later
+
+                // Analysis parameters
+                researchDepth: researchDepth || 'Standard',
+                personaDetailLevel: personaDetailLevel,
+                influenceFramework: influenceFramework,
+                selectedMaterials: selectedMaterials || null,
+                templateChoice: templateChoice || 'Modern',
+
+                // Generated analysis content
+                companyAnalysis: analysis.companyAnalysis,
+                contactPersona: analysis.contactPersona,
+                influenceTactics: analysis.influenceTactics,
+                discussionPoints: analysis.discussionPoints,
+                objectionHandling: analysis.objectionHandling,
+                generatedMaterials: analysis.generatedMaterials || null,
+
+                // Status
+                status: 'Ready', // Analysis complete, ready to use
+
+                // Approval fields
+                approvalStatus: 'Not Submitted'
+              }
+            });
+
+            strapi.log.info(`[AnalysisGeneration] Game plan saved successfully with ID: ${gamePlan.documentId}`);
+
+            // Update progress tracker with game plan ID
+            const { progressTracker } = await import('../services/game-plan-generator');
+            const currentProgress = progressTracker.getProgress(analysisId);
+            if (currentProgress) {
+              progressTracker.setCompleted(analysisId, {
+                ...currentProgress.result,
+                gamePlanId: gamePlan.documentId
+              });
+            }
+
+          } catch (saveError) {
+            strapi.log.error(`[AnalysisGeneration] Failed to save game plan:`, saveError);
+            strapi.log.error(`[AnalysisGeneration] Error details:`, {
+              name: saveError.name,
+              message: saveError.message,
+              stack: saveError.stack
+            });
+            // Don't throw - analysis was successful, just saving failed
+            // User can still see results in progress tracker
+          }
         })
         .catch((error) => {
           strapi.log.error(`[AnalysisGeneration] Failed for ${analysisId}:`, error);
@@ -501,6 +581,18 @@ export default {
         });
       }
 
+      // Recalculate elapsed/remaining time dynamically if globalStartTime is available
+      let currentElapsed = progress.totalElapsedSeconds || 0;
+      let currentRemaining = progress.totalRemainingSeconds || 0;
+
+      if (progress.globalStartTime) {
+        // Calculate current elapsed time from global start (continuous timer)
+        const now = new Date();
+        currentElapsed = Math.round((now.getTime() - new Date(progress.globalStartTime).getTime()) / 1000);
+        // Remaining = total estimate (210s for 7 phases) minus elapsed
+        currentRemaining = Math.max(0, 210 - currentElapsed);
+      }
+
       // Return progress data in same format as SSE events
       return ctx.send({
         success: true,
@@ -510,7 +602,12 @@ export default {
           status: progress.status,
           error: progress.error,
           complete: progress.status === 'completed',
-          result: progress.status === 'completed' ? progress.result : undefined
+          result: progress.status === 'completed' ? progress.result : undefined,
+          // Timing fields - dynamically calculated
+          phaseNumber: progress.phaseNumber,
+          totalPhases: progress.totalPhases,
+          elapsedSeconds: currentElapsed,
+          remainingSeconds: currentRemaining
         },
         timestamp: progress.updatedAt
       });
@@ -1186,6 +1283,212 @@ export default {
       return ctx.internalServerError({
         error: {
           message: 'Failed to share game plan',
+          details: error.message
+        }
+      });
+    }
+  },
+
+  /**
+   * POST /api/salespilot/regenerate-section
+   * Regenerate a specific section of a game plan with AI
+   */
+  async regenerateSection(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+    if (!currentUser) {
+      return ctx.unauthorized('Authentication required');
+    }
+
+    const { gamePlanId, section, chatContext, mode, existingContent } = ctx.request.body;
+
+    if (!gamePlanId || !section) {
+      return ctx.badRequest('Missing required fields: gamePlanId, section');
+    }
+
+    try {
+      const gamePlanGenerator = require('../services/game-plan-generator');
+
+      // Validate section name
+      const validSections = ['companyAnalysis', 'contactPersona', 'influenceTactics', 'discussionPoints', 'objectionHandling'];
+      if (!validSections.includes(section)) {
+        return ctx.badRequest(`Invalid section name. Must be one of: ${validSections.join(', ')}`);
+      }
+
+      // Fetch game plan
+      const gamePlan = await strapi.documents('api::sales-game-plan.sales-game-plan').findOne({
+        documentId: gamePlanId,
+        populate: ['user']
+      });
+
+      if (!gamePlan) {
+        return ctx.notFound('Game plan not found');
+      }
+
+      // Verify ownership
+      if (gamePlan.user.id !== currentUser.id) {
+        return ctx.forbidden('You can only regenerate your own game plans');
+      }
+
+      strapi.log.info(`[Regenerate Section] User ${currentUser.id} regenerating section "${section}" for game plan ${gamePlanId}`);
+
+      // Generate new content for the specific section
+      let newContent;
+
+      switch (section) {
+        case 'companyAnalysis':
+          newContent = await gamePlanGenerator.generateCompanyAnalysis({
+            companyName: gamePlan.primaryCompanyName,
+            industry: (gamePlan as any).industry,
+            researchData: (gamePlan as any).researchData || {},
+            chatContext,
+            mode,
+            existingContent
+          });
+          break;
+
+        case 'contactPersona':
+          newContent = await gamePlanGenerator.generateContactPersona({
+            contactName: gamePlan.primaryContactName,
+            contactTitle: gamePlan.primaryContactTitle,
+            companyName: gamePlan.primaryCompanyName,
+            industry: (gamePlan as any).industry,
+            researchData: (gamePlan as any).researchData || {},
+            detailLevel: gamePlan.personaDetailLevel || 'Standard',
+            chatContext,
+            mode,
+            existingContent
+          });
+          break;
+
+        case 'influenceTactics':
+          newContent = await gamePlanGenerator.generateInfluenceTactics({
+            contactName: gamePlan.primaryContactName,
+            contactTitle: gamePlan.primaryContactTitle,
+            companyName: gamePlan.primaryCompanyName,
+            meetingSubject: gamePlan.meetingSubject,
+            desiredOutcome: gamePlan.desiredOutcome,
+            framework: gamePlan.influenceFramework || 'Hybrid',
+            companyAnalysis: gamePlan.companyAnalysis || '',
+            contactPersona: gamePlan.contactPersona || '',
+            chatContext,
+            mode,
+            existingContent
+          });
+          break;
+
+        case 'discussionPoints':
+          newContent = await gamePlanGenerator.generateDiscussionPoints({
+            companyName: gamePlan.primaryCompanyName,
+            meetingSubject: gamePlan.meetingSubject,
+            desiredOutcome: gamePlan.desiredOutcome,
+            companyAnalysis: gamePlan.companyAnalysis || '',
+            contactPersona: gamePlan.contactPersona || '',
+            chatContext,
+            mode,
+            existingContent
+          });
+          break;
+
+        case 'objectionHandling':
+          newContent = await gamePlanGenerator.generateObjectionHandling({
+            companyName: gamePlan.primaryCompanyName,
+            meetingSubject: gamePlan.meetingSubject,
+            detailLevel: gamePlan.personaDetailLevel || 'Standard',
+            companyAnalysis: gamePlan.companyAnalysis || '',
+            contactPersona: gamePlan.contactPersona || '',
+            chatContext,
+            mode,
+            existingContent
+          });
+          break;
+      }
+
+      // Content generated - frontend will call applyImprovement to save
+      strapi.log.info(`[Regenerate Section] Generated new content for section "${section}"`);
+
+      return ctx.send({
+        success: true,
+        data: {
+          section,
+          content: newContent
+        },
+        message: 'Content generated successfully (not saved - use Apply to save)'
+      });
+
+    } catch (error) {
+      strapi.log.error('[Regenerate Section] Error:', error);
+      return ctx.internalServerError({
+        error: {
+          message: 'Failed to regenerate section',
+          details: error.message
+        }
+      });
+    }
+  },
+
+  /**
+   * POST /api/salespilot/delete-section
+   * Delete a specific section from a game plan
+   */
+  async deleteSection(ctx) {
+    const currentUser = await authenticateRequest(ctx);
+    if (!currentUser) {
+      return ctx.unauthorized('Authentication required');
+    }
+
+    const { gamePlanId, section } = ctx.request.body;
+
+    if (!gamePlanId || !section) {
+      return ctx.badRequest('Missing required fields: gamePlanId, section');
+    }
+
+    try {
+      // Validate section name
+      const validSections = ['companyAnalysis', 'contactPersona', 'influenceTactics', 'discussionPoints', 'objectionHandling'];
+      if (!validSections.includes(section)) {
+        return ctx.badRequest(`Invalid section name. Must be one of: ${validSections.join(', ')}`);
+      }
+
+      // Fetch game plan
+      const gamePlan = await strapi.documents('api::sales-game-plan.sales-game-plan').findOne({
+        documentId: gamePlanId,
+        populate: ['user']
+      });
+
+      if (!gamePlan) {
+        return ctx.notFound('Game plan not found');
+      }
+
+      // Verify ownership
+      if (gamePlan.user.id !== currentUser.id) {
+        return ctx.forbidden('You can only delete sections from your own game plans');
+      }
+
+      strapi.log.info(`[Delete Section] User ${currentUser.id} deleting section "${section}" from game plan ${gamePlanId}`);
+
+      // Delete the section by setting it to null
+      await strapi.documents('api::sales-game-plan.sales-game-plan').update({
+        documentId: gamePlanId,
+        data: {
+          [section]: null
+        }
+      });
+
+      strapi.log.info(`[Delete Section] Successfully deleted section "${section}"`);
+
+      return ctx.send({
+        success: true,
+        data: {
+          section
+        },
+        message: 'Section deleted successfully'
+      });
+
+    } catch (error) {
+      strapi.log.error('[Delete Section] Error:', error);
+      return ctx.internalServerError({
+        error: {
+          message: 'Failed to delete section',
           details: error.message
         }
       });

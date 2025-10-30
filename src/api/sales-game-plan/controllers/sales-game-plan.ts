@@ -78,6 +78,7 @@ export default {
       influenceTactics,
       discussionPoints,
       objectionHandling,
+      generatedMaterials, // Phase 7 materials
       // Status fields
       status,
       approvalStatus
@@ -113,7 +114,8 @@ export default {
           contactPersona: contactPersona || null,
           influenceTactics: influenceTactics || null,
           discussionPoints: discussionPoints || null,
-          objectionHandling: objectionHandling || null
+          objectionHandling: objectionHandling || null,
+          generatedMaterials: generatedMaterials || null // Phase 7 materials
         }
       });
 

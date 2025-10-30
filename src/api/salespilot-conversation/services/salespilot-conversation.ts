@@ -163,7 +163,7 @@ const STEP_CONFIG = [
     required: true,
     hasButtons: true,
     multiSelect: true,
-    options: ['Meeting Agenda', 'Presentation Deck', 'Email Template', 'Follow-up Email']
+    options: ['agenda', 'presentation', 'preMeetingEmail', 'postMeetingEmail']
   },
   // Step 16: Template Selection
   {
@@ -877,6 +877,11 @@ export default () => ({
 
       strapi.log.info(`[AnalysisGeneration] Using ID: ${analysisId}`);
 
+      // Parse globalStartTime if provided (convert from ISO string to Date)
+      const globalStartTime = params.globalStartTime
+        ? new Date(params.globalStartTime)
+        : undefined;
+
       // Generate complete analysis
       const analysis = await generateCompleteAnalysis({
         companyName: params.companyName,
@@ -888,7 +893,10 @@ export default () => ({
         personaDetailLevel: params.personaDetailLevel,
         influenceFramework: params.influenceFramework,
         researchData: params.researchData,
+        selectedMaterials: params.selectedMaterials, // Pass selected materials for Phase 7
+        templateChoice: params.templateChoice, // Pass template choice for PDFs
         analysisId, // Pass analysisId for progress tracking
+        globalStartTime, // Pass global start time from research phase 1
         onProgress: (stage, percentage) => {
           strapi.log.info(`[AnalysisGeneration] ${stage} (${percentage}%)`);
         }
