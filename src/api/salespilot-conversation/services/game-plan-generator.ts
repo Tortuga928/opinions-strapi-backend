@@ -21,8 +21,11 @@ export async function generateCompanyAnalysis(params: {
   companyName: string;
   industry: string;
   researchData: any;
+  chatContext?: string;
+  mode?: string;
+  existingContent?: string;
 }): Promise<string> {
-  const { companyName, industry, researchData } = params;
+  const { companyName, industry, researchData, chatContext, mode, existingContent } = params;
 
   try {
     const companyData = researchData?.companies?.[0] || {};
@@ -33,6 +36,32 @@ export async function generateCompanyAnalysis(params: {
       .map((result: any) => `- ${result.title}: ${result.snippet}`)
       .join('\n');
 
+    // Build regeneration context if provided
+    let regenerationInstructions = '';
+    if (chatContext) {
+      if (mode === 'fresh') {
+        regenerationInstructions = `
+
+🔄 REGENERATION REQUEST (Start Fresh):
+User wants completely new company analysis with these specific requirements:
+${chatContext}
+
+IMPORTANT: Generate from scratch. Create entirely fresh analysis.`;
+      } else {
+        regenerationInstructions = `
+
+🔄 REGENERATION REQUEST (Build on Existing):
+Enhance current analysis by incorporating:
+${chatContext}
+
+EXISTING ANALYSIS:
+${existingContent || 'None'}
+
+IMPORTANT: Keep valuable insights, enhance with requested elements.`;
+      }
+    }
+
+
     const prompt = `You are a sales intelligence analyst. Analyze this company and provide a comprehensive landscape analysis.
 
 COMPANY: ${companyName}
@@ -40,6 +69,7 @@ INDUSTRY: ${industry}
 
 RESEARCH FINDINGS:
 ${researchContext || 'Limited research data available'}
+${regenerationInstructions}
 
 Generate a structured company landscape analysis with these sections:
 
@@ -75,8 +105,11 @@ export async function generateContactPersona(params: {
   industry: string;
   researchData: any;
   detailLevel: 'Brief' | 'Standard' | 'Detailed';
+  chatContext?: string;
+  mode?: string;
+  existingContent?: string;
 }): Promise<string> {
-  const { contactName, contactTitle, companyName, industry, researchData, detailLevel } = params;
+  const { contactName, contactTitle, companyName, industry, researchData, detailLevel, chatContext, mode, existingContent } = params;
 
   try {
     const contactData = researchData?.contacts?.[0] || {};
@@ -93,6 +126,35 @@ export async function generateContactPersona(params: {
       Detailed: 'Create an extensive 2-page profile with deep behavioral insights.'
     };
 
+    // Build regeneration context if provided
+    let regenerationInstructions = '';
+    if (chatContext) {
+      if (mode === 'fresh') {
+        regenerationInstructions = `
+
+🔄 REGENERATION REQUEST (Start Fresh):
+User wants a completely new persona analysis with these specific requirements:
+${chatContext}
+
+IMPORTANT: Generate from scratch. Do NOT reference or build upon existing content.
+Create an entirely fresh analysis incorporating the user's requirements (e.g., DISC method, specific frameworks, etc.).`;
+      } else {
+        regenerationInstructions = `
+
+🔄 REGENERATION REQUEST (Build on Existing):
+Enhance and expand the current persona by incorporating these user requirements:
+${chatContext}
+
+EXISTING PERSONA TO BUILD UPON:
+${existingContent || 'None provided'}
+
+IMPORTANT: Keep valuable insights from existing content, but enhance it by:
+- Adding the specific elements the user requested (DISC, specific frameworks, etc.)
+- Expanding relevant sections
+- Improving clarity and depth`;
+      }
+    }
+
     const prompt = `You are a sales intelligence analyst. Create a persona profile for this contact.
 
 CONTACT: ${contactName}
@@ -105,6 +167,7 @@ ${researchContext || 'Use industry knowledge and title context'}
 
 DETAIL LEVEL: ${detailLevel}
 INSTRUCTIONS: ${detailInstructions[detailLevel]}
+${regenerationInstructions}
 
 Generate a structured persona with:
 1. COMMUNICATION STYLE
@@ -312,8 +375,15 @@ export async function generateCompleteAnalysis(params: {
   desiredOutcome: string;
   personaDetailLevel: string;
   influenceFramework: string;
-  researchData: any;
+  researchData?: any; // Optional - if not provided, research will be performed internally
+  researchDepth?: 'Quick' | 'Standard' | 'Deep'; // Optional - used when performing internal research
+  companyDomain?: string; // Optional - for research
+  contactLinkedIn?: string; // Optional - for research
+  additionalParties?: any[]; // Optional - for research
+  selectedMaterials?: string[]; // Optional - materials to generate in Phase 7
+  templateChoice?: string; // Optional - template for PDFs (default: 'modern')
   analysisId?: string; // Optional - for progress tracking
+  globalStartTime?: Date; // Optional - global start time from research phase 1
   onProgress?: (stage: string, percentage: number) => void;
 }): Promise<any> {
   const {
@@ -326,7 +396,14 @@ export async function generateCompleteAnalysis(params: {
     personaDetailLevel,
     influenceFramework,
     researchData,
+    researchDepth,
+    companyDomain,
+    contactLinkedIn,
+    additionalParties,
+    selectedMaterials,
+    templateChoice,
     analysisId,
+    globalStartTime,
     onProgress
   } = params;
 
@@ -346,30 +423,69 @@ export async function generateCompleteAnalysis(params: {
 
     // Initialize phase timings if analysisId provided
     if (analysisId) {
-      progressTracker.initializePhaseTimings(analysisId);
+      progressTracker.initializePhaseTimings(analysisId, globalStartTime);
     }
 
-    // Stage 1: Company Analysis (Phase 1, 20%)
-    reportProgress(1, 'Analyzing company landscape...', 20);
+    // Phase 1: Research (15%)
+    let actualResearchData = researchData;
+
+    if (!actualResearchData) {
+      // Perform research internally
+      console.log('[GamePlanGenerator] No research data provided - performing research internally');
+      reportProgress(1, 'Gathering intelligence', 15);
+
+      try {
+        // Import the service (avoid circular dependency)
+        const salespilotService = strapi.service('api::salespilot-conversation.salespilot-conversation');
+
+        actualResearchData = await salespilotService.performWebResearch({
+          companyName,
+          companyDomain,
+          contactName,
+          contactTitle,
+          contactLinkedIn,
+          industry,
+          researchDepth: researchDepth || 'Standard',
+          additionalParties
+        }, null); // No userId needed for internal call
+
+        console.log('[GamePlanGenerator] Internal research completed');
+      } catch (researchError) {
+        console.error('[GamePlanGenerator] Internal research failed:', researchError);
+        // Continue with empty research data
+        actualResearchData = {
+          companies: [],
+          contacts: [],
+          additionalInfo: []
+        };
+      }
+    } else {
+      // Research was performed externally - just acknowledge completion
+      console.log('[GamePlanGenerator] Using provided research data');
+      reportProgress(1, 'Gathering intelligence', 15);
+    }
+
+    // Phase 2: Company Analysis (30%)
+    reportProgress(2, 'Analyzing company landscape...', 30);
     const companyAnalysis = await generateCompanyAnalysis({
       companyName,
       industry,
-      researchData
+      researchData: actualResearchData
     });
 
-    // Stage 2: Contact Persona (Phase 2, 40%)
-    reportProgress(2, `Generating ${personaDetailLevel} persona...`, 40);
+    // Phase 3: Contact Persona (45%)
+    reportProgress(3, `Generating ${personaDetailLevel} persona...`, 45);
     const contactPersona = await generateContactPersona({
       contactName,
       contactTitle,
       companyName,
       industry,
-      researchData,
+      researchData: actualResearchData,
       detailLevel: personaDetailLevel as 'Brief' | 'Standard' | 'Detailed'
     });
 
-    // Stage 3: Influence Tactics (Phase 3, 60%)
-    reportProgress(3, 'Generating influence tactics...', 60);
+    // Phase 4: Influence Tactics (60%)
+    reportProgress(4, 'Generating influence tactics...', 60);
     const influenceTactics = await generateInfluenceTactics({
       contactName,
       contactTitle,
@@ -381,8 +497,8 @@ export async function generateCompleteAnalysis(params: {
       contactPersona
     });
 
-    // Stage 4: Discussion Points (Phase 4, 80%)
-    reportProgress(4, 'Generating discussion points...', 80);
+    // Phase 5: Discussion Points (75%)
+    reportProgress(5, 'Generating discussion points...', 75);
     const discussionPoints = await generateDiscussionPoints({
       companyName,
       meetingSubject,
@@ -391,8 +507,8 @@ export async function generateCompleteAnalysis(params: {
       contactPersona
     });
 
-    // Stage 5: Objection Handling (Phase 5, 100%)
-    reportProgress(5, 'Generating objection handling...', 100);
+    // Phase 6: Objection Handling (90%)
+    reportProgress(6, 'Generating objection handling...', 90);
     const objectionHandling = await generateObjectionHandling({
       companyName,
       meetingSubject,
@@ -400,6 +516,76 @@ export async function generateCompleteAnalysis(params: {
       companyAnalysis,
       contactPersona
     });
+
+    // Phase 7: Materials Generation (100%) - Optional
+    console.log('[GamePlanGenerator] Phase 7 check - selectedMaterials:', selectedMaterials);
+    let generatedMaterials = null;
+    if (selectedMaterials && selectedMaterials.length > 0) {
+      console.log('[GamePlanGenerator] Phase 7 EXECUTING - generating materials');
+      reportProgress(7, 'Generating materials...', 100);
+
+      // Import material generation services
+      const materialGenerator = await import('./material-generator');
+      const pdfGenerator = await import('./pdf-generator');
+
+      // Create temporary game plan object for material generation
+      const tempGamePlan = {
+        primaryCompanyName: companyName,
+        primaryContactName: contactName,
+        primaryContactTitle: contactTitle,
+        meetingSubject,
+        desiredOutcome,
+        companyAnalysis,
+        contactPersona,
+        influenceTactics,
+        discussionPoints,
+        objectionHandling
+      };
+
+      generatedMaterials = {};
+
+      // Generate pre-meeting email
+      if (selectedMaterials.includes('preMeetingEmail')) {
+        console.log('[GamePlanGenerator] Generating pre-meeting email...');
+        const email = await materialGenerator.generatePreMeetingEmail(tempGamePlan);
+        generatedMaterials.preMeetingEmail = email;
+      }
+
+      // Generate post-meeting email
+      if (selectedMaterials.includes('postMeetingEmail')) {
+        console.log('[GamePlanGenerator] Generating post-meeting email...');
+        const email = await materialGenerator.generatePostMeetingEmail(tempGamePlan);
+        generatedMaterials.postMeetingEmail = email;
+      }
+
+      // Generate agenda PDF
+      if (selectedMaterials.includes('agenda')) {
+        console.log('[GamePlanGenerator] Generating agenda PDF...');
+        try {
+          const pdf = await pdfGenerator.generateAgendaPDF(tempGamePlan, templateChoice || 'modern');
+          console.log('[GamePlanGenerator] Agenda PDF result:', pdf);
+          generatedMaterials.agenda = pdf;
+        } catch (error) {
+          console.error('[GamePlanGenerator] Agenda PDF generation failed:', error);
+          generatedMaterials.agenda = null;
+        }
+      }
+
+      // Generate presentation PDF
+      if (selectedMaterials.includes('presentation')) {
+        console.log('[GamePlanGenerator] Generating presentation PDF...');
+        try {
+          const pdf = await pdfGenerator.generatePresentationPDF(tempGamePlan, templateChoice || 'modern');
+          console.log('[GamePlanGenerator] Presentation PDF result:', pdf);
+          generatedMaterials.presentation = pdf;
+        } catch (error) {
+          console.error('[GamePlanGenerator] Presentation PDF generation failed:', error);
+          generatedMaterials.presentation = null;
+        }
+      }
+
+      console.log('[GamePlanGenerator] Materials generated successfully');
+    }
 
     console.log('[GamePlanGenerator] Complete analysis generated successfully');
 
@@ -409,6 +595,7 @@ export async function generateCompleteAnalysis(params: {
       influenceTactics,
       discussionPoints,
       objectionHandling,
+      generatedMaterials,
       generatedAt: new Date().toISOString()
     };
 
