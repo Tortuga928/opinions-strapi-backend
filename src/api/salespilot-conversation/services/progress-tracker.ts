@@ -35,6 +35,7 @@ interface ProgressData {
   phaseTimings?: PhaseTimingData[];
   totalElapsedSeconds?: number;
   totalRemainingSeconds?: number;
+  globalStartTime?: Date; // Global start time from research phase 1
 }
 
 class ProgressTracker {
@@ -87,12 +88,13 @@ class ProgressTracker {
   /**
    * Initialize phase timing tracking
    *
-   * Sets up the 5 phases with their estimates and starts tracking timing
+   * Sets up the 6 phases with their estimates and starts tracking timing
    *
    * @param {string} analysisId - Unique identifier for the analysis
+   * @param {Date} globalStartTime - Optional global start time from research phase 1
    * @returns {void}
    */
-  initializePhaseTimings(analysisId: string): void {
+  initializePhaseTimings(analysisId: string, globalStartTime?: Date): void {
     const existing = this.progressMap.get(analysisId);
 
     if (!existing) {
@@ -101,24 +103,43 @@ class ProgressTracker {
     }
 
     const phaseTimings: PhaseTimingData[] = [
+      { phaseName: 'Research', estimate: 30 },
       { phaseName: 'Company Analysis', estimate: 30 },
       { phaseName: 'Contact Persona', estimate: 30 },
       { phaseName: 'Influence Tactics', estimate: 30 },
       { phaseName: 'Discussion Points', estimate: 30 },
-      { phaseName: 'Objection Handling', estimate: 30 }
+      { phaseName: 'Objection Handling', estimate: 30 },
+      { phaseName: 'Materials Generation', estimate: 30 }
     ];
+
+    const now = new Date();
+    const startTime = globalStartTime || now;
+
+    // Calculate initial elapsed time if global start time provided
+    const initialElapsed = globalStartTime
+      ? Math.round((now.getTime() - globalStartTime.getTime()) / 1000)
+      : 0;
+
+    // If globalStartTime provided, mark Phase 1 (Research) as already completed
+    // since it was done in the frontend before calling the backend
+    if (globalStartTime && initialElapsed > 0) {
+      phaseTimings[0].startTime = globalStartTime;
+      phaseTimings[0].actualDuration = initialElapsed;
+      console.log(`[ProgressTracker] Phase 1 (Research) marked complete: ${initialElapsed}s`);
+    }
 
     this.progressMap.set(analysisId, {
       ...existing,
       phaseNumber: 0,
-      totalPhases: 5,
+      totalPhases: 7,
       phaseTimings,
-      totalElapsedSeconds: 0,
-      totalRemainingSeconds: 150, // 5 phases × 30 seconds
-      updatedAt: new Date()
+      totalElapsedSeconds: initialElapsed,
+      totalRemainingSeconds: 210 - initialElapsed, // 7 phases × 30 seconds minus already elapsed
+      globalStartTime: startTime,
+      updatedAt: now
     });
 
-    console.log(`[ProgressTracker] Initialized phase timings for: ${analysisId}`);
+    console.log(`[ProgressTracker] Initialized phase timings for: ${analysisId} (global start: ${startTime.toISOString()}, initial elapsed: ${initialElapsed}s)`);
   }
 
   /**
@@ -127,7 +148,7 @@ class ProgressTracker {
    * Updates the current phase, calculates elapsed and remaining time
    *
    * @param {string} analysisId - Unique identifier for the analysis
-   * @param {number} phaseNumber - Current phase number (1-5)
+   * @param {number} phaseNumber - Current phase number (1-6)
    * @param {string} stage - Description of current stage
    * @param {number} percentage - Completion percentage (0-100)
    * @returns {void}
@@ -158,14 +179,19 @@ class ProgressTracker {
       }
     }
 
-    // Calculate total elapsed
+    // Calculate total elapsed from global start time (if available) or sum of phases
     let totalElapsed = 0;
-    for (let i = 0; i < phaseTimings.length; i++) {
-      if (phaseTimings[i].actualDuration) {
-        totalElapsed += phaseTimings[i].actualDuration!;
-      } else if (i === currentPhaseIndex && phaseTimings[i].startTime) {
-        // Add current phase elapsed time
-        totalElapsed += Math.round((now.getTime() - phaseTimings[i].startTime!.getTime()) / 1000);
+    if (existing.globalStartTime) {
+      // Use global start time for continuous elapsed count across all phases
+      totalElapsed = Math.round((now.getTime() - existing.globalStartTime.getTime()) / 1000);
+    } else {
+      // Fallback: sum individual phase durations
+      for (let i = 0; i < phaseTimings.length; i++) {
+        if (phaseTimings[i].actualDuration) {
+          totalElapsed += phaseTimings[i].actualDuration!;
+        } else if (i === currentPhaseIndex && phaseTimings[i].startTime) {
+          totalElapsed += Math.round((now.getTime() - phaseTimings[i].startTime!.getTime()) / 1000);
+        }
       }
     }
 
@@ -194,7 +220,7 @@ class ProgressTracker {
       updatedAt: now
     });
 
-    console.log(`[ProgressTracker] Updated phase progress ${analysisId}: Phase ${phaseNumber}/5 - ${stage} (${percentage}%) | Elapsed: ${totalElapsed}s | Remaining: ~${totalRemaining}s`);
+    console.log(`[ProgressTracker] Updated phase progress ${analysisId}: Phase ${phaseNumber}/${existing.totalPhases || 6} - ${stage} (${percentage}%) | Elapsed: ${totalElapsed}s | Remaining: ~${totalRemaining}s`);
   }
 
   /**
