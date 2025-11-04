@@ -414,6 +414,44 @@ export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiInvesteosConfigInvesteosConfig
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'investeos_configs';
+  info: {
+    description: 'User Schwab OAuth configuration and tokens';
+    displayName: 'Investeos Configuration';
+    pluralName: 'investeos-configs';
+    singularName: 'investeos-config';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isConnected: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::investeos-config.investeos-config'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    schwabAccessToken: Schema.Attribute.Text & Schema.Attribute.Private;
+    schwabAccountId: Schema.Attribute.String;
+    schwabRefreshToken: Schema.Attribute.Text & Schema.Attribute.Private;
+    tokenExpiry: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'oneToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiLoginHistoryLoginHistory
   extends Struct.CollectionTypeSchema {
   collectionName: 'login_histories';
@@ -862,6 +900,166 @@ export interface ApiStatementStatement extends Struct.CollectionTypeSchema {
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
         maxLength: 1000;
+      }>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiStockModalConfigStockModalConfig
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'stock_modal_configs';
+  info: {
+    description: 'User stock modal positions and ticker assignments';
+    displayName: 'Stock Modal Configuration';
+    pluralName: 'stock-modal-configs';
+    singularName: 'stock-modal-config';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    companyName: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 200;
+      }>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isConfigured: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::stock-modal-config.stock-modal-config'
+    > &
+      Schema.Attribute.Private;
+    position: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 199;
+          min: 0;
+        },
+        number
+      >;
+    publishedAt: Schema.Attribute.DateTime;
+    ticker: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 10;
+      }>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
+export interface ApiStockStatConfigStockStatConfig
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'stock_stat_configs';
+  info: {
+    description: 'User stock stat selections and color configurations';
+    displayName: 'Stock Stat Configuration';
+    pluralName: 'stock-stat-configs';
+    singularName: 'stock-stat-config';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isNumeric: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::stock-stat-config.stock-stat-config'
+    > &
+      Schema.Attribute.Private;
+    numericRanges: Schema.Attribute.JSON & Schema.Attribute.DefaultTo<[]>;
+    publishedAt: Schema.Attribute.DateTime;
+    statDisplayName: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 100;
+      }>;
+    statKey: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 50;
+      }>;
+    statPosition: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 59;
+          min: 0;
+        },
+        number
+      >;
+    textValues: Schema.Attribute.JSON & Schema.Attribute.DefaultTo<[]>;
+    ticker: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 10;
+      }>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
+export interface ApiSymbolCacheSymbolCache extends Struct.CollectionTypeSchema {
+  collectionName: 'symbol_caches';
+  info: {
+    description: 'Cached stock symbols for autocomplete';
+    displayName: 'Symbol Cache';
+    pluralName: 'symbol-caches';
+    singularName: 'symbol-cache';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    companyName: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 200;
+      }>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    exchange: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 50;
+      }>;
+    lastUpdated: Schema.Attribute.DateTime &
+      Schema.Attribute.DefaultTo<'2024-01-01T00:00:00.000Z'>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::symbol-cache.symbol-cache'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    ticker: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 10;
       }>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1544,6 +1742,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::category.category': ApiCategoryCategory;
+      'api::investeos-config.investeos-config': ApiInvesteosConfigInvesteosConfig;
       'api::login-history.login-history': ApiLoginHistoryLoginHistory;
       'api::menu-permission.menu-permission': ApiMenuPermissionMenuPermission;
       'api::opinion.opinion': ApiOpinionOpinion;
@@ -1551,6 +1750,9 @@ declare module '@strapi/strapi' {
       'api::quote-draft.quote-draft': ApiQuoteDraftQuoteDraft;
       'api::sales-game-plan.sales-game-plan': ApiSalesGamePlanSalesGamePlan;
       'api::statement.statement': ApiStatementStatement;
+      'api::stock-modal-config.stock-modal-config': ApiStockModalConfigStockModalConfig;
+      'api::stock-stat-config.stock-stat-config': ApiStockStatConfigStockStatConfig;
+      'api::symbol-cache.symbol-cache': ApiSymbolCacheSymbolCache;
       'api::user-activity-log.user-activity-log': ApiUserActivityLogUserActivityLog;
       'api::user-rating.user-rating': ApiUserRatingUserRating;
       'plugin::content-releases.release': PluginContentReleasesRelease;

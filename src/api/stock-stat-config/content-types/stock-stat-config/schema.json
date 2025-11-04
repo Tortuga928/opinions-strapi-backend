@@ -1,0 +1,54 @@
+{
+  "kind": "collectionType",
+  "collectionName": "stock_stat_configs",
+  "info": {
+    "singularName": "stock-stat-config",
+    "pluralName": "stock-stat-configs",
+    "displayName": "Stock Stat Configuration",
+    "description": "User stock stat selections and color configurations"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "ticker": {
+      "type": "string",
+      "required": true,
+      "maxLength": 10
+    },
+    "statPosition": {
+      "type": "integer",
+      "required": true,
+      "min": 0,
+      "max": 59
+    },
+    "statKey": {
+      "type": "string",
+      "required": true,
+      "maxLength": 50
+    },
+    "statDisplayName": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "isNumeric": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "numericRanges": {
+      "type": "json",
+      "default": []
+    },
+    "textValues": {
+      "type": "json",
+      "default": []
+    }
+  }
+}

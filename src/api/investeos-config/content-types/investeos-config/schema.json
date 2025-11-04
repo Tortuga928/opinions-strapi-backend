@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "investeos_configs",
+  "info": {
+    "singularName": "investeos-config",
+    "pluralName": "investeos-configs",
+    "displayName": "Investeos Configuration",
+    "description": "User Schwab OAuth configuration and tokens"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "schwabAccessToken": {
+      "type": "text",
+      "private": true
+    },
+    "schwabRefreshToken": {
+      "type": "text",
+      "private": true
+    },
+    "tokenExpiry": {
+      "type": "datetime"
+    },
+    "schwabAccountId": {
+      "type": "string"
+    },
+    "isConnected": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

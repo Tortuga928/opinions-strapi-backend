@@ -1,0 +1,41 @@
+{
+  "kind": "collectionType",
+  "collectionName": "stock_modal_configs",
+  "info": {
+    "singularName": "stock-modal-config",
+    "pluralName": "stock-modal-configs",
+    "displayName": "Stock Modal Configuration",
+    "description": "User stock modal positions and ticker assignments"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "position": {
+      "type": "integer",
+      "required": true,
+      "min": 0,
+      "max": 199
+    },
+    "ticker": {
+      "type": "string",
+      "required": true,
+      "maxLength": 10
+    },
+    "companyName": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "isConfigured": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    }
+  }
+}

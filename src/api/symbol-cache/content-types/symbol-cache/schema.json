@@ -1,0 +1,35 @@
+{
+  "kind": "collectionType",
+  "collectionName": "symbol_caches",
+  "info": {
+    "singularName": "symbol-cache",
+    "pluralName": "symbol-caches",
+    "displayName": "Symbol Cache",
+    "description": "Cached stock symbols for autocomplete"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "ticker": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "maxLength": 10
+    },
+    "companyName": {
+      "type": "string",
+      "required": true,
+      "maxLength": 200
+    },
+    "exchange": {
+      "type": "string",
+      "maxLength": 50
+    },
+    "lastUpdated": {
+      "type": "datetime",
+      "default": "2024-01-01T00:00:00.000Z"
+    }
+  }
+}
